@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter pub:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(ipconfig:*)",
+      "Bash(curl:*)",
+      "Bash(netsh advfirewall:*)",
+      "Bash(netsh wlan:*)"
+    ]
+  }
+}

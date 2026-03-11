@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "736028052176",
+    "project_id": "bloodwise-5f06c",
+    "storage_bucket": "bloodwise-5f06c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:736028052176:android:1837d36b06cfa0aed66cd5",
+        "android_client_info": {
+          "package_name": "com.example.openlab"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "736028052176-ms93lbp5e4obp5q4qgq9d82m9nfoec11.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRYkU5tiXqTiwGH56pns-Tp559tN_8s5E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "736028052176-ms93lbp5e4obp5q4qgq9d82m9nfoec11.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
