@@ -13,6 +13,7 @@ class ReportModel {
   final String? aiComparisonSummary;
   final String? overallStatus;
   final StatusCounts statusCounts;
+  final HealthScore? healthScore;
   final List<ParameterModel> parameters;
   final ProcessingInfo processing;
 
@@ -29,6 +30,7 @@ class ReportModel {
     this.aiComparisonSummary,
     this.overallStatus,
     required this.statusCounts,
+    this.healthScore,
     this.parameters = const [],
     required this.processing,
   });
@@ -55,6 +57,9 @@ class ReportModel {
       statusCounts: json['statusCounts'] != null
           ? StatusCounts.fromJson(json['statusCounts'] as Map<String, dynamic>)
           : const StatusCounts(),
+      healthScore: json['healthScore'] != null
+          ? HealthScore.fromJson(json['healthScore'] as Map<String, dynamic>)
+          : null,
       parameters: (json['parameters'] as List<dynamic>?)
               ?.map((e) => ParameterModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
@@ -161,6 +166,92 @@ class FileInfo {
       'size': size,
       'url': url,
     };
+  }
+}
+
+class HealthScore {
+  final int? score;
+  final String label;
+  final List<CategoryScore> categoryScores;
+  final ScoreCoverage coverage;
+  final int penaltiesApplied;
+
+  const HealthScore({
+    this.score,
+    this.label = 'No Data',
+    this.categoryScores = const [],
+    this.coverage = const ScoreCoverage(),
+    this.penaltiesApplied = 0,
+  });
+
+  factory HealthScore.fromJson(Map<String, dynamic> json) {
+    return HealthScore(
+      score: (json['score'] as num?)?.toInt(),
+      label: json['label'] as String? ?? 'No Data',
+      categoryScores: (json['categoryScores'] as List<dynamic>?)
+              ?.map((e) => CategoryScore.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      coverage: json['coverage'] != null
+          ? ScoreCoverage.fromJson(json['coverage'] as Map<String, dynamic>)
+          : const ScoreCoverage(),
+      penaltiesApplied: (json['penaltiesApplied'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class CategoryScore {
+  final String category;
+  final String label;
+  final int weight;
+  final int? score;
+  final int markersFound;
+  final int markersTotal;
+  final String status;
+
+  const CategoryScore({
+    required this.category,
+    required this.label,
+    required this.weight,
+    this.score,
+    this.markersFound = 0,
+    this.markersTotal = 0,
+    this.status = 'unknown',
+  });
+
+  factory CategoryScore.fromJson(Map<String, dynamic> json) {
+    return CategoryScore(
+      category: json['category'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      weight: (json['weight'] as num?)?.toInt() ?? 1,
+      score: (json['score'] as num?)?.toInt(),
+      markersFound: (json['markersFound'] as num?)?.toInt() ?? 0,
+      markersTotal: (json['markersTotal'] as num?)?.toInt() ?? 0,
+      status: json['status'] as String? ?? 'unknown',
+    );
+  }
+}
+
+class ScoreCoverage {
+  final int found;
+  final int total;
+  final int percentage;
+  final bool sufficient;
+
+  const ScoreCoverage({
+    this.found = 0,
+    this.total = 0,
+    this.percentage = 0,
+    this.sufficient = false,
+  });
+
+  factory ScoreCoverage.fromJson(Map<String, dynamic> json) {
+    return ScoreCoverage(
+      found: (json['found'] as num?)?.toInt() ?? 0,
+      total: (json['total'] as num?)?.toInt() ?? 0,
+      percentage: (json['percentage'] as num?)?.toInt() ?? 0,
+      sufficient: json['sufficient'] as bool? ?? false,
+    );
   }
 }
 

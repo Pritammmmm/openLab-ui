@@ -69,7 +69,7 @@ class AppColors {
 class AppTheme {
   AppTheme._();
 
-  static const double cardRadius = 16;
+  static const double cardRadius = 20;
   static const double buttonRadius = 12;
   static const double standardPadding = 16;
   static const double minTapTarget = 48;
@@ -200,10 +200,11 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         color: AppColors.surface,
-        elevation: 0,
+        elevation: 2,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.black.withValues(alpha: 0.12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(cardRadius),
-          side: const BorderSide(color: AppColors.surfaceBorder),
         ),
         margin: EdgeInsets.zero,
       ),

@@ -11,59 +11,68 @@ class QuickStatsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _StatChip(
+        _StatCard(
           count: statusCounts.green,
           label: 'Normal',
           color: AppColors.green,
-          bgColor: AppColors.greenBg,
+          icon: Icons.check_circle_rounded,
         ),
-        const SizedBox(width: 8),
-        _StatChip(
+        const SizedBox(width: 10),
+        _StatCard(
           count: statusCounts.yellow,
           label: 'Borderline',
           color: AppColors.yellow,
-          bgColor: AppColors.yellowBg,
+          icon: Icons.warning_rounded,
         ),
-        const SizedBox(width: 8),
-        _StatChip(
+        const SizedBox(width: 10),
+        _StatCard(
           count: statusCounts.red,
           label: 'Attention',
           color: AppColors.red,
-          bgColor: AppColors.redBg,
+          icon: Icons.error_rounded,
         ),
       ],
     );
   }
 }
 
-class _StatChip extends StatelessWidget {
+class _StatCard extends StatelessWidget {
   final int count;
   final String label;
   final Color color;
-  final Color bgColor;
+  final IconData icon;
 
-  const _StatChip({
+  const _StatCard({
     required this.count,
     required this.label,
     required this.color,
-    required this.bgColor,
+    required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 8),
             Text(
               count.toString(),
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 24,
                 fontWeight: FontWeight.w700,
                 color: color,
               ),
@@ -71,10 +80,10 @@ class _StatChip extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 12,
+              style: const TextStyle(
+                fontSize: 11,
                 fontWeight: FontWeight.w500,
-                color: color,
+                color: AppColors.textMuted,
               ),
             ),
           ],

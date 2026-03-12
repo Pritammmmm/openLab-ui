@@ -19,7 +19,7 @@ final reportDetailProvider =
 });
 
 final reportStatusProvider =
-    FutureProvider.family<String, String>((ref, reportId) async {
+    FutureProvider.family<Map<String, dynamic>, String>((ref, reportId) async {
   final repo = ref.watch(reportRepositoryProvider);
   return repo.getReportStatus(reportId);
 });

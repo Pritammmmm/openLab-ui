@@ -58,10 +58,13 @@ class ReportApi {
     String profileId, {
     int page = 1,
     int limit = 10,
+    String? status,
   }) async {
+    final queryParams = <String, dynamic>{'page': page, 'limit': limit};
+    if (status != null) queryParams['status'] = status;
     final response = await _client.get(
       ApiEndpoints.reportsByProfile(profileId),
-      queryParameters: {'page': page, 'limit': limit},
+      queryParameters: queryParams,
     );
     return ApiResponse.fromJson(
       response.data as Map<String, dynamic>,

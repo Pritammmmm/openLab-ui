@@ -9,6 +9,7 @@ class ReportSummaryModel {
   final String status;
   final String? overallStatus;
   final StatusCounts statusCounts;
+  final HealthScore? healthScore;
   final int parameterCount;
 
   const ReportSummaryModel({
@@ -20,6 +21,7 @@ class ReportSummaryModel {
     this.status = 'processing',
     this.overallStatus,
     required this.statusCounts,
+    this.healthScore,
     this.parameterCount = 0,
   });
 
@@ -39,6 +41,9 @@ class ReportSummaryModel {
       statusCounts: json['statusCounts'] != null
           ? StatusCounts.fromJson(json['statusCounts'] as Map<String, dynamic>)
           : const StatusCounts(),
+      healthScore: json['healthScore'] != null
+          ? HealthScore.fromJson(json['healthScore'] as Map<String, dynamic>)
+          : null,
       parameterCount: json['parameterCount'] as int? ?? 0,
     );
   }

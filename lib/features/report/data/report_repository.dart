@@ -32,10 +32,10 @@ class ReportRepository {
     throw Exception(response.message);
   }
 
-  Future<String> getReportStatus(String reportId) async {
+  Future<Map<String, dynamic>> getReportStatus(String reportId) async {
     final response = await _api.getReportStatus(reportId);
     if (response.success && response.data != null) {
-      return response.data!['status'] as String? ?? 'processing';
+      return response.data!;
     }
     throw Exception(response.message);
   }

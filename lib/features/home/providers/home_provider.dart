@@ -3,6 +3,7 @@ import '../../../core/providers/core_providers.dart';
 import '../../profile/data/profile_api.dart';
 import '../../profile/models/profile_model.dart';
 import '../../report/data/report_api.dart';
+import '../../report/models/report_model.dart';
 import '../../report/models/report_summary_model.dart';
 import '../data/home_repository.dart';
 
@@ -55,4 +56,12 @@ final latestReportProvider =
     FutureProvider.family<ReportSummaryModel?, String>((ref, profileId) async {
   final repo = ref.watch(homeRepositoryProvider);
   return repo.getLatestReport(profileId);
+});
+
+final latestFullReportProvider =
+    FutureProvider.family<ReportModel?, String>((ref, profileId) async {
+  final summary = await ref.watch(latestReportProvider(profileId).future);
+  if (summary == null || !summary.isCompleted) return null;
+  final repo = ref.watch(homeRepositoryProvider);
+  return repo.getFullReport(summary.id);
 });

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/config/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../home/providers/home_provider.dart';
 import '../providers/report_provider.dart';
 
 class ProcessingScreen extends ConsumerStatefulWidget {
@@ -66,21 +67,72 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen> {
     );
   }
 
+  Widget _tipRow(BuildContext context, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(Icons.check_circle_outline_rounded,
+                size: 16, color: AppColors.green),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _userFriendlyError(String? serverError) {
+    if (serverError == null) return 'Something went wrong. Please try again.';
+
+    if (serverError.contains('No valid parameters extracted') ||
+        serverError.contains('No valid parameters could be extracted')) {
+      return 'We couldn\'t find any medical data in this file. Please upload a clear photo or PDF of your blood test report.';
+    }
+    if (serverError.contains('matched the master catalog')) {
+      return 'The report could not be read properly. Make sure the image is clear and shows a complete blood test report.';
+    }
+    if (serverError.contains('429') || serverError.contains('quota')) {
+      return 'Our analysis service is temporarily busy. Please try again in a few minutes.';
+    }
+    if (serverError.contains('download') || serverError.contains('Cloudinary')) {
+      return 'There was a problem processing your file. Please try uploading again.';
+    }
+
+    return 'Analysis failed. Please try again with a clear report image or PDF.';
+  }
+
   Future<void> _checkStatus() async {
     try {
       final repo = ref.read(reportRepositoryProvider);
-      final status = await repo.getReportStatus(widget.reportId);
+      final statusData = await repo.getReportStatus(widget.reportId);
 
       if (!mounted) return;
 
+      final status = statusData['status'] as String? ?? 'processing';
+
       if (status == 'completed') {
         _pollTimer?.cancel();
+        // Invalidate home screen providers so health score reflects the new report
+        ref.invalidate(latestReportProvider);
+        ref.invalidate(latestFullReportProvider);
         context.pushReplacement('/results/${widget.reportId}');
       } else if (status == 'failed') {
         _pollTimer?.cancel();
+        final serverError = statusData['errorMessage'] as String?;
         setState(() {
           _failed = true;
-          _errorMessage = 'Analysis failed. Please try again.';
+          _errorMessage = _userFriendlyError(serverError);
         });
       }
     } catch (e) {
@@ -111,14 +163,43 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen> {
                 const SizedBox(height: 16),
                 Text(
                   _errorMessage ?? 'Something went wrong',
-                  style: Theme.of(context).textTheme.headlineSmall,
+                  style: Theme.of(context).textTheme.titleMedium,
                   textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tips for best results:',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      _tipRow(context, 'Use a clear, well-lit photo of the report'),
+                      _tipRow(context, 'Make sure all text and numbers are readable'),
+                      _tipRow(context, 'Include the full report page, not a cropped section'),
+                      _tipRow(context, 'PDF files usually give the best results'),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 24),
                 AppButton(
                   label: 'Try Again',
                   onPressed: () => context.go('/upload'),
                   icon: Icons.refresh_rounded,
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => context.go('/'),
+                  child: const Text('Go Home'),
                 ),
               ] else ...[
                 // Animated pulse

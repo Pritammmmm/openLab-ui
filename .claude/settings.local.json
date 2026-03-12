@@ -6,7 +6,18 @@
       "Bash(ipconfig:*)",
       "Bash(curl:*)",
       "Bash(netsh advfirewall:*)",
-      "Bash(netsh wlan:*)"
+      "Bash(netsh wlan:*)",
+      "Bash(ls -la \"C:\\\\Users\\\\prita\\\\OneDrive\\\\Desktop\\\\openLab/bloodwise-api/\" | grep -E \"\\\\.js$|^d\")",
+      "Bash(grep -r \"rate\" \"C:\\\\Users\\\\prita\\\\OneDrive\\\\Desktop\\\\openLab/bloodwise-api/src\" -i --include=\"*.js\" 2>/dev/null | head -20)",
+      "Bash(cd \"C:\\\\Users\\\\prita\\\\StudioProjects\\\\openlab\" && dart analyze lib/features/report/screens/processing_screen.dart 2>&1 | tail -5)",
+      "Bash(cd \"C:\\\\Users\\\\prita\\\\StudioProjects\\\\openlab\" && dart analyze lib/features/report/models/ lib/features/home/widgets/health_score_ring.dart lib/features/home/screens/home_screen.dart 2>&1 | tail -10)",
+      "Bash(cd \"C:\\\\Users\\\\prita\\\\StudioProjects\\\\openlab\" && dart analyze lib/ 2>&1 | tail -5)",
+      "Bash(cd \"C:\\\\Users\\\\prita\\\\StudioProjects\\\\openlab\" && dart analyze lib/features/home/screens/home_screen.dart lib/features/home/widgets/health_score_ring.dart lib/features/report/data/report_api.dart 2>&1 | tail -5)",
+      "Bash(cd \"C:\\\\Users\\\\prita\\\\StudioProjects\\\\openlab\" && dart analyze lib/features/home/screens/home_screen.dart 2>&1 | tail -3)",
+      "Bash(cd \"C:/Users/prita/OneDrive/Desktop/openLab/bloodwise-api\" && node -e \"\nimport\\('dotenv/config'\\).then\\(\\(\\) => import\\('mongoose'\\)\\).then\\(m => {\n  const mongoose = m.default;\n  mongoose.connect\\(process.env.MONGODB_URI\\).then\\(async \\(\\) => {\n    const count = await mongoose.connection.db.collection\\('scoringconfigs'\\).countDocuments\\(\\);\n    console.log\\('ScoringConfig documents:', count\\);\n    if \\(count > 0\\) {\n      const doc = await mongoose.connection.db.collection\\('scoringconfigs'\\).findOne\\({ is_active: true }\\);\n      console.log\\('Active config categories:', doc?.categories?.map\\(c => c.key\\)\\);\n      console.log\\('Total key markers:', doc?.categories?.reduce\\(\\(sum, c\\) => sum + c.parameters.length, 0\\)\\);\n    } else {\n      console.log\\('NO SCORING CONFIG FOUND — run: npm run seed:scoring'\\);\n    }\n    await mongoose.disconnect\\(\\);\n  }\\);\n}\\);\n\" 2>&1)",
+      "Bash(cd \"C:/Users/prita/OneDrive/Desktop/openLab/bloodwise-api\" && node -e \"\nimport\\('dotenv/config'\\).then\\(\\(\\) => import\\('mongoose'\\)\\).then\\(m => {\n  const mongoose = m.default;\n  mongoose.connect\\(process.env.MONGODB_URI\\).then\\(async \\(\\) => {\n    // Get latest completed report\n    const report = await mongoose.connection.db.collection\\('reports'\\)\n      .findOne\\({ status: 'completed' }, { sort: { createdAt: -1 } }\\);\n    \n    if \\(!report\\) { console.log\\('No completed reports'\\); return; }\n    \n    console.log\\('Report ID:', report._id\\);\n    console.log\\('Report date:', report.createdAt\\);\n    console.log\\('Parameter count:', report.parameters?.length\\);\n    console.log\\('Status counts:', report.status_counts\\);\n    console.log\\('Health score:', JSON.stringify\\(report.health_score, null, 2\\)\\);\n    console.log\\(''\\);\n    console.log\\('Parameter names in report:'\\);\n    report.parameters?.forEach\\(p => console.log\\(' -', p.name\\)\\);\n    \n    await mongoose.disconnect\\(\\);\n  }\\);\n}\\);\n\" 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\prita\\\\OneDrive\\\\Desktop\\\\openLab\\\\bloodwise-api\" && node debug-report.js 69b3090a45782ea2317b8e95)",
+      "Bash(cd \"C:\\\\Users\\\\prita\\\\OneDrive\\\\Desktop\\\\openLab\\\\bloodwise-api\" && node debug-report.js)"
     ]
   }
 }
