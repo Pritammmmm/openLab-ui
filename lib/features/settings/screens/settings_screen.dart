@@ -252,6 +252,230 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
+/// Drawer version of settings — opened from profile picture on home screen.
+class SettingsDrawer extends ConsumerWidget {
+  const SettingsDrawer({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
+
+    return Drawer(
+      backgroundColor: AppColors.background,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+            // Profile card
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 26,
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                      backgroundImage: user?.photoUrl != null
+                          ? NetworkImage(user!.photoUrl!)
+                          : null,
+                      child: user?.photoUrl == null
+                          ? Text(
+                              user?.name.isNotEmpty == true
+                                  ? user!.name[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user?.name ?? 'User',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            user?.email ?? '',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Settings groups
+            _SettingsGroup(
+              children: [
+                _SettingsTile(
+                  icon: Icons.family_restroom_rounded,
+                  title: 'Manage Profiles',
+                  onTap: () {
+                    Navigator.pop(context);
+                    GoRouter.of(context).push('/settings/profiles');
+                  },
+                ),
+                _SettingsTile(
+                  icon: Icons.language_rounded,
+                  title: 'Language',
+                  trailing: Text(
+                    'English',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('More languages coming soon!')),
+                    );
+                  },
+                ),
+                _SettingsTile(
+                  icon: Icons.notifications_outlined,
+                  title: 'Notifications',
+                  trailing: Switch(
+                    value: true,
+                    activeTrackColor: AppColors.primary,
+                    onChanged: (_) {},
+                  ),
+                  onTap: () {},
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            _SettingsGroup(
+              children: [
+                _SettingsTile(
+                  icon: Icons.privacy_tip_outlined,
+                  title: 'Privacy Policy',
+                  onTap: () {},
+                ),
+                _SettingsTile(
+                  icon: Icons.description_outlined,
+                  title: 'Terms of Service',
+                  onTap: () {},
+                ),
+                _SettingsTile(
+                  icon: Icons.medical_information_outlined,
+                  title: 'Medical Disclaimer',
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Medical Disclaimer'),
+                        content: const Text(
+                          'BloodWise provides health information for educational purposes only. '
+                          'It is not a substitute for professional medical advice, diagnosis, or treatment. '
+                          'Always seek the advice of your physician or other qualified health provider '
+                          'with any questions you may have regarding a medical condition.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('OK'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            _SettingsGroup(
+              children: [
+                _SettingsTile(
+                  icon: Icons.delete_outline_rounded,
+                  title: 'Delete My Data',
+                  titleColor: AppColors.red,
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Delete All Data'),
+                        content: const Text(
+                          'This will permanently delete your account, all profiles, and all reports. '
+                          'This action cannot be undone.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                            },
+                            child: const Text('Delete',
+                                style: TextStyle(color: AppColors.red)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                _SettingsTile(
+                  icon: Icons.logout_rounded,
+                  title: 'Log Out',
+                  titleColor: AppColors.red,
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Log Out'),
+                        content: const Text('Are you sure you want to log out?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              ref.read(authNotifierProvider.notifier).logout();
+                            },
+                            child: const Text('Log Out',
+                                style: TextStyle(color: AppColors.red)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                '${AppConfig.appName} v1.0.0',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textMuted,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SettingsGroup extends StatelessWidget {
   final List<Widget> children;
 
