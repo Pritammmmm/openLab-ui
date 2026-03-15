@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../core/config/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/isometric_icon.dart';
 import '../../home/providers/home_provider.dart';
 import '../providers/upload_provider.dart';
 
@@ -36,7 +37,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       if (mounted) {
         _showPermissionDialog(
           'Camera Access Required',
-          'BloodWise needs camera access to take photos of your blood reports.',
+          'WiseBlood needs camera access to take photos of your blood reports.',
         );
       }
       return;
@@ -335,14 +336,10 @@ class _UploadOption extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: AppColors.primary, size: 26),
+            Icon3D(
+              icon: icon,
+              size: 48,
+              color: AppColors.primary,
             ),
             const SizedBox(width: 16),
             Expanded(

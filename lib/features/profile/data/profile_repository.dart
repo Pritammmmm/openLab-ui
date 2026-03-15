@@ -22,7 +22,7 @@ class ProfileRepository {
   }) async {
     final response = await _api.createProfile({
       'name': name,
-      'date_of_birth': dateOfBirth.toIso8601String(),
+      'date_of_birth': dateOfBirth.toUtc().toIso8601String(),
       'gender': gender,
       'relation': relation,
     });
@@ -41,7 +41,7 @@ class ProfileRepository {
   }) async {
     final data = <String, dynamic>{};
     if (name != null) data['name'] = name;
-    if (dateOfBirth != null) data['date_of_birth'] = dateOfBirth.toIso8601String();
+    if (dateOfBirth != null) data['date_of_birth'] = dateOfBirth.toUtc().toIso8601String();
     if (gender != null) data['gender'] = gender;
     if (relation != null) data['relation'] = relation;
 

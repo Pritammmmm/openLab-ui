@@ -16,6 +16,7 @@ import '../../features/report/screens/processing_screen.dart';
 import '../../features/report/screens/results_screen.dart';
 import '../../features/trends/screens/health_activity_screen.dart';
 import '../../features/trends/screens/parameter_trend_screen.dart';
+import '../../features/subscription/screens/pricing_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -102,6 +103,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/parameter-trend',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const ParameterTrendScreen(),
+      ),
+      GoRoute(
+        path: '/pricing',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const PricingScreen(),
       ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,

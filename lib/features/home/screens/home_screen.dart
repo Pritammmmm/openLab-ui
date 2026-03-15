@@ -20,6 +20,9 @@ import '../../trends/widgets/health_heatmap_preview.dart';
 import '../../trends/providers/parameter_trend_provider.dart';
 import '../../trends/widgets/sparkline_preview.dart';
 import '../../../core/config/app_router.dart';
+import '../../../core/widgets/isometric_icon.dart';
+import '../../profile/models/profile_model.dart' show ProfileModel;
+import '../../profile/providers/profile_provider.dart' show maxProfilesForPlan;
 
 String _timeGreeting() {
   final hour = DateTime.now().hour;
@@ -33,7 +36,6 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider);
     final profilesAsync = ref.watch(profilesProvider);
     final selectedProfile = ref.watch(selectedProfileProvider);
 
@@ -54,7 +56,7 @@ class HomeScreen extends ConsumerWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               // Header
-              SliverToBoxAdapter(child: _Header(user: user)),
+              const SliverToBoxAdapter(child: _Header()),
 
               // Body
               if (selectedProfile == null)
@@ -90,39 +92,28 @@ class HomeScreen extends ConsumerWidget {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Header
+// Header — shows greeting, profile avatar, and profile switcher dropdown
 // ──────────────────────────────────────────────────────────────────────────────
 
-class _Header extends StatelessWidget {
-  final dynamic user;
-
-  const _Header({this.user});
+class _Header extends ConsumerWidget {
+  const _Header();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
+    final profilesAsync = ref.watch(profilesProvider);
+    final selectedProfile = ref.watch(selectedProfileProvider);
+    final profiles = profilesAsync.valueOrNull ?? [];
+    final hasMultipleProfiles = profiles.length > 1;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => ScaffoldWithNav.scaffoldKey.currentState?.openDrawer(),
-            child: CircleAvatar(
-              radius: 24,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-              backgroundImage: user?.photoUrl != null
-                  ? NetworkImage(user!.photoUrl!)
-                  : null,
-              child: user?.photoUrl == null
-                  ? Text(
-                      (user?.name ?? 'U')[0].toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
-                    )
-                  : null,
-            ),
+            onTap: () =>
+                ScaffoldWithNav.scaffoldKey.currentState?.openDrawer(),
+            child: _buildAvatar(user, selectedProfile),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -136,14 +127,283 @@ class _Header extends StatelessWidget {
                       ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  user?.name ?? 'User',
-                  style: Theme.of(context).textTheme.titleLarge,
+                GestureDetector(
+                  onTap: hasMultipleProfiles
+                      ? () => _showProfileSwitcher(
+                            context, ref, profiles, selectedProfile)
+                      : null,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          selectedProfile?.name ?? user?.name ?? 'User',
+                          style: Theme.of(context).textTheme.titleLarge,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (hasMultipleProfiles) ...[
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 22,
+                          color: AppColors.textMuted,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar(dynamic user, ProfileModel? profile) {
+    final isSelf = profile == null || profile.relation == 'self';
+    final hasPhoto = isSelf && user?.photoUrl != null;
+
+    return CircleAvatar(
+      radius: 24,
+      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+      backgroundImage: hasPhoto ? NetworkImage(user!.photoUrl!) : null,
+      child: !hasPhoto
+          ? Text(
+              profile?.initials ?? (user?.name ?? 'U')[0].toUpperCase(),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            )
+          : null,
+    );
+  }
+
+  void _showProfileSwitcher(
+    BuildContext context,
+    WidgetRef ref,
+    List<ProfileModel> profiles,
+    ProfileModel? selected,
+  ) {
+    final user = ref.read(currentUserProvider);
+    final maxAllowed = maxProfilesForPlan(user?.subscription.plan);
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _ProfileSwitcherSheet(
+        profiles: profiles,
+        selectedId: selected?.id,
+        maxAllowed: maxAllowed,
+        onSelect: (index) {
+          ref.read(selectedProfileIndexProvider.notifier).state = index;
+          Navigator.pop(ctx);
+        },
+        onManage: () {
+          Navigator.pop(ctx);
+          GoRouter.of(context).push('/settings/profiles');
+        },
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Profile Switcher Bottom Sheet
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _ProfileSwitcherSheet extends StatelessWidget {
+  final List<ProfileModel> profiles;
+  final String? selectedId;
+  final int maxAllowed;
+  final ValueChanged<int> onSelect;
+  final VoidCallback onManage;
+
+  const _ProfileSwitcherSheet({
+    required this.profiles,
+    required this.selectedId,
+    required this.maxAllowed,
+    required this.onSelect,
+    required this.onManage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceBorder,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Title row
+            Row(
+              children: [
+                Text(
+                  'Switch Profile',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${profiles.length}/$maxAllowed',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Profile options
+            ...profiles.asMap().entries.map((entry) {
+              final index = entry.key;
+              final profile = entry.value;
+              final isSelected = profile.id == selectedId;
+              return _ProfileOption(
+                profile: profile,
+                isSelected: isSelected,
+                onTap: () => onSelect(index),
+              );
+            }),
+            const SizedBox(height: 8),
+            // Manage profiles link
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: onManage,
+                icon: const Icon(Icons.settings_rounded, size: 18),
+                label: const Text('Manage Profiles'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileOption extends StatelessWidget {
+  final ProfileModel profile;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ProfileOption({
+    required this.profile,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppColors.primary.withValues(alpha: 0.06)
+                : AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected
+                  ? AppColors.primary.withValues(alpha: 0.3)
+                  : AppColors.surfaceBorder,
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: isSelected
+                    ? AppColors.primary.withValues(alpha: 0.15)
+                    : AppColors.primary.withValues(alpha: 0.08),
+                child: Text(
+                  profile.initials,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            profile.name,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w600,
+                                ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (profile.isDefault) ...[
+                          const SizedBox(width: 6),
+                          const Icon(Icons.star_rounded,
+                              size: 14, color: AppColors.yellow),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${profile.relation[0].toUpperCase()}${profile.relation.substring(1)} · ${profile.reportCount} reports',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check_rounded,
+                      size: 14, color: Colors.white),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -324,17 +584,10 @@ class _LatestReportCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(
-                Icons.description_rounded,
-                color: AppColors.primary,
-                size: 24,
-              ),
+            const Icon3D(
+              icon: Icons.description_rounded,
+              size: 48,
+              color: AppColors.primary,
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -505,10 +758,10 @@ class _NoProfileState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.person_add_rounded,
-              size: 64,
-              color: AppColors.textMuted,
+            const IsometricIcon(
+              icon: Icons.person_add_rounded,
+              size: 80,
+              color: AppColors.primary,
             ),
             const SizedBox(height: 16),
             Text(

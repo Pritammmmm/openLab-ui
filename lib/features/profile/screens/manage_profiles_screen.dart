@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/config/app_theme.dart';
 import '../../../core/utils/helpers.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_error_widget.dart';
 import '../../../core/widgets/app_loading.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/profile_model.dart';
 import '../providers/profile_provider.dart';
 
@@ -14,30 +16,95 @@ class ManageProfilesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profilesAsync = ref.watch(manageProfilesProvider);
+    final user = ref.watch(currentUserProvider);
+    final isPremium = user?.subscription.isPremium ?? false;
+    final maxAllowed = maxProfilesForPlan(user?.subscription.plan);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Family Profiles')),
-      body: profilesAsync.when(
-        data: (profiles) => ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: profiles.length + 1,
-          itemBuilder: (context, index) {
-            if (index == profiles.length) {
-              return Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: AppButton(
-                  label: 'Add Family Member',
-                  variant: AppButtonVariant.outline,
-                  icon: Icons.person_add_rounded,
-                  onPressed: () => _showAddProfileSheet(context, ref),
+      appBar: AppBar(
+        title: const Text('Family Profiles'),
+        actions: [
+          profilesAsync.whenOrNull(
+                data: (profiles) => Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: profiles.length >= maxAllowed
+                            ? AppColors.yellowBg
+                            : AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${profiles.length}/$maxAllowed',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: profiles.length >= maxAllowed
+                              ? AppColors.yellow
+                              : AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              );
-            }
-            final profile = profiles[index];
-            return _ProfileTile(profile: profile);
-          },
-        ),
+              ) ??
+              const SizedBox.shrink(),
+        ],
+      ),
+      body: profilesAsync.when(
+        data: (profiles) {
+          final atCap = profiles.length >= maxAllowed;
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              ...profiles.map((profile) => _ProfileTile(profile: profile)),
+              if (!atCap && isPremium)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: AppButton(
+                    label: 'Add Family Member',
+                    variant: AppButtonVariant.outline,
+                    icon: Icons.person_add_rounded,
+                    onPressed: () => _showAddProfileSheet(context, ref),
+                  ),
+                )
+              else if (!isPremium)
+                _UpgradeCard(context: context)
+              else
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.yellowBg,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded,
+                            color: AppColors.yellow, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'You\'ve reached the maximum of $maxAllowed profiles. '
+                            'Delete an existing member to add a new one.',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
         loading: () => const AppLoading(),
         error: (e, _) => AppErrorWidget(
           message: 'Failed to load profiles',
@@ -58,9 +125,12 @@ class ManageProfilesScreen extends ConsumerWidget {
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(ctx).viewInsets.bottom,
         ),
-        child: _AddProfileSheet(ref: ref),
+        child: const _AddProfileSheet(),
       ),
-    );
+    ).then((_) {
+      // Always refresh the list when sheet closes
+      ref.invalidate(manageProfilesProvider);
+    });
   }
 }
 
@@ -74,7 +144,8 @@ class _ProfileTile extends ConsumerWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           radius: 24,
           backgroundColor: AppColors.primary.withValues(alpha: 0.1),
@@ -98,12 +169,13 @@ class _ProfileTile extends ConsumerWidget {
             ),
             if (profile.isDefault) ...[
               const SizedBox(width: 8),
-              const Icon(Icons.star_rounded, color: AppColors.yellow, size: 18),
+              const Icon(Icons.star_rounded,
+                  color: AppColors.yellow, size: 18),
             ],
           ],
         ),
         subtitle: Text(
-          '${profile.relation.capitalize()} • ${profile.reportCount} reports',
+          '${profile.relation.capitalize()} · ${profile.reportCount} reports',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         trailing: profile.isDefault
@@ -140,7 +212,9 @@ class _ProfileTile extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Profile'),
         content: Text(
-            'Are you sure you want to delete "${profile.name}"? This will also remove all associated reports.'),
+          'Are you sure you want to delete "${profile.name}"? '
+          'This will also remove all their reports and data.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -162,23 +236,95 @@ class _ProfileTile extends ConsumerWidget {
   }
 }
 
-class _AddProfileSheet extends StatefulWidget {
-  final WidgetRef ref;
+class _UpgradeCard extends StatelessWidget {
+  final BuildContext context;
 
-  const _AddProfileSheet({required this.ref});
+  const _UpgradeCard({required this.context});
 
   @override
-  State<_AddProfileSheet> createState() => _AddProfileSheetState();
+  Widget build(BuildContext _) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.primary.withValues(alpha: 0.08),
+              AppColors.primary.withValues(alpha: 0.03),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.15),
+          ),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.family_restroom_rounded,
+                color: AppColors.primary,
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Track Your Family\'s Health',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Upgrade to Premium to add family members and '
+              'track their blood reports separately.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: AppButton(
+                label: 'Upgrade to Premium',
+                icon: Icons.star_rounded,
+                onPressed: () => GoRouter.of(context).push('/pricing'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _AddProfileSheetState extends State<_AddProfileSheet> {
+class _AddProfileSheet extends ConsumerStatefulWidget {
+  const _AddProfileSheet();
+
+  @override
+  ConsumerState<_AddProfileSheet> createState() => _AddProfileSheetState();
+}
+
+class _AddProfileSheetState extends ConsumerState<_AddProfileSheet> {
   final _nameController = TextEditingController();
   DateTime? _dateOfBirth;
   String _gender = 'male';
-  String _relation = 'child';
+  String _relation = 'father';
   bool _isLoading = false;
 
-  final _relations = ['child', 'parent', 'spouse', 'sibling', 'other'];
+  final _relations = ['father', 'mother', 'spouse', 'child', 'other'];
 
   @override
   void dispose() {
@@ -187,7 +333,8 @@ class _AddProfileSheetState extends State<_AddProfileSheet> {
   }
 
   Future<void> _submit() async {
-    if (_nameController.text.trim().isEmpty || _dateOfBirth == null) {
+    final name = _nameController.text.trim();
+    if (name.isEmpty || _dateOfBirth == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all fields')),
       );
@@ -196,8 +343,8 @@ class _AddProfileSheetState extends State<_AddProfileSheet> {
 
     setState(() => _isLoading = true);
     try {
-      await widget.ref.read(manageProfilesProvider.notifier).createProfile(
-            name: _nameController.text.trim(),
+      await ref.read(manageProfilesProvider.notifier).createProfile(
+            name: name,
             dateOfBirth: _dateOfBirth!,
             gender: _gender,
             relation: _relation,
@@ -206,7 +353,10 @@ class _AddProfileSheetState extends State<_AddProfileSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.red),
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: AppColors.red,
+          ),
         );
       }
     } finally {
@@ -235,12 +385,19 @@ class _AddProfileSheetState extends State<_AddProfileSheet> {
           const SizedBox(height: 20),
           Text('Add Family Member',
               style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 4),
+          Text(
+            'Track health reports for a family member',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textMuted,
+                ),
+          ),
           const SizedBox(height: 24),
           TextFormField(
             controller: _nameController,
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
-              labelText: 'Name',
+              labelText: 'Full Name',
               prefixIcon: Icon(Icons.person_outline_rounded),
             ),
           ),
@@ -296,7 +453,7 @@ class _AddProfileSheetState extends State<_AddProfileSheet> {
                 .map((r) => DropdownMenuItem(
                     value: r, child: Text(r.capitalize())))
                 .toList(),
-            onChanged: (v) => setState(() => _relation = v ?? 'child'),
+            onChanged: (v) => setState(() => _relation = v ?? 'father'),
           ),
           const SizedBox(height: 24),
           AppButton(
@@ -308,12 +465,5 @@ class _AddProfileSheetState extends State<_AddProfileSheet> {
         ],
       ),
     );
-  }
-}
-
-extension StringCapitalize on String {
-  String capitalize() {
-    if (isEmpty) return this;
-    return '${this[0].toUpperCase()}${substring(1)}';
   }
 }

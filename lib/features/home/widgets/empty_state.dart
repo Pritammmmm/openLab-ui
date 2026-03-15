@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/config/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/isometric_icon.dart';
 
 class EmptyState extends StatelessWidget {
   const EmptyState({super.key});
@@ -13,18 +14,10 @@ class EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.biotech_rounded,
-              size: 56,
-              color: AppColors.primary,
-            ),
+          const IsometricIcon(
+            icon: Icons.biotech_rounded,
+            size: 100,
+            color: AppColors.primary,
           ),
           const SizedBox(height: 24),
           Text(

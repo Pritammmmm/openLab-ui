@@ -236,6 +236,12 @@ class _LoggingInterceptor extends Interceptor {
     debugPrint(
       '✕ ${err.response?.statusCode ?? 'ERR'} ${err.requestOptions.uri}: ${err.message}',
     );
+    if (err.response?.data != null) {
+      debugPrint('  ↳ body: ${err.response?.data}');
+    }
+    if (err.requestOptions.data != null) {
+      debugPrint('  ↳ sent: ${err.requestOptions.data}');
+    }
     handler.next(err);
   }
 }

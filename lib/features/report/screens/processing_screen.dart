@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/config/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/isometric_icon.dart';
 import '../../home/providers/home_provider.dart';
 import '../providers/report_provider.dart';
 
@@ -158,8 +159,12 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen> {
             children: [
               const Spacer(),
               if (_failed) ...[
-                const Icon(Icons.error_outline_rounded,
-                    size: 64, color: AppColors.red),
+                const IsometricIcon(
+                  icon: Icons.error_outline_rounded,
+                  size: 80,
+                  color: AppColors.red,
+                  animate: false,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   _errorMessage ?? 'Something went wrong',
@@ -202,31 +207,11 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen> {
                   child: const Text('Go Home'),
                 ),
               ] else ...[
-                // Animated pulse
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.8, end: 1.0),
-                  duration: const Duration(milliseconds: 1200),
-                  curve: Curves.easeInOut,
-                  builder: (context, scale, child) {
-                    return Transform.scale(
-                      scale: scale,
-                      child: child,
-                    );
-                  },
-                  onEnd: () {},
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      _steps[_currentStep].$2,
-                      size: 48,
-                      color: AppColors.primary,
-                    ),
-                  ),
+                // Animated 3D icon
+                IsometricIcon(
+                  icon: _steps[_currentStep].$2,
+                  size: 100,
+                  color: AppColors.primary,
                 ),
                 const SizedBox(height: 32),
 
@@ -292,8 +277,11 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.lightbulb_outline_rounded,
-                        color: AppColors.green, size: 24),
+                    const Icon3D(
+                      icon: Icons.lightbulb_outline_rounded,
+                      color: AppColors.green,
+                      size: 36,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(

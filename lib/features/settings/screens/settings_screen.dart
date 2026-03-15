@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/config/app_theme.dart';
+import '../../../core/utils/helpers.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../home/providers/home_provider.dart';
+import '../../profile/providers/profile_provider.dart' show maxProfilesForPlan;
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -149,7 +152,7 @@ class SettingsScreen extends ConsumerWidget {
                     builder: (ctx) => AlertDialog(
                       title: const Text('Medical Disclaimer'),
                       content: const Text(
-                        'BloodWise provides health information for educational purposes only. '
+                        'WiseBlood provides health information for educational purposes only. '
                         'It is not a substitute for professional medical advice, diagnosis, or treatment. '
                         'Always seek the advice of your physician or other qualified health provider '
                         'with any questions you may have regarding a medical condition.',
@@ -259,6 +262,10 @@ class SettingsDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final selectedProfile = ref.watch(selectedProfileProvider);
+    final profiles = ref.watch(profilesProvider).valueOrNull ?? [];
+    final profileCount = profiles.length;
+    final maxAllowed = maxProfilesForPlan(user?.subscription.plan);
 
     return Drawer(
       backgroundColor: AppColors.background,
@@ -269,7 +276,7 @@ class SettingsDrawer extends ConsumerWidget {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-            // Profile card
+            // User account card
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(20),
@@ -315,6 +322,56 @@ class SettingsDrawer extends ConsumerWidget {
                 ),
               ),
             ),
+
+            // Active profile indicator
+            if (selectedProfile != null &&
+                selectedProfile.relation != 'self') ...[
+              const SizedBox(height: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 14,
+                      backgroundColor:
+                          AppColors.primary.withValues(alpha: 0.12),
+                      child: Text(
+                        selectedProfile.initials[0],
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Viewing ${selectedProfile.name}\'s data',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
+                    ),
+                    Text(
+                      selectedProfile.relation.capitalize(),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: AppColors.textMuted,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
 
             // Settings groups
@@ -323,9 +380,83 @@ class SettingsDrawer extends ConsumerWidget {
                 _SettingsTile(
                   icon: Icons.family_restroom_rounded,
                   title: 'Manage Profiles',
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$profileCount/$maxAllowed',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: AppColors.textMuted),
+                    ],
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     GoRouter.of(context).push('/settings/profiles');
+                  },
+                ),
+                _SettingsTile(
+                  icon: Icons.star_rounded,
+                  title: 'Premium Plans',
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (user?.subscription.isPremium == true)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.yellowBg,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            (user?.subscription.plan ?? 'plus').toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.yellow,
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'FREE',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: AppColors.textMuted),
+                    ],
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    GoRouter.of(context).push('/pricing');
                   },
                 ),
                 _SettingsTile(
@@ -376,7 +507,7 @@ class SettingsDrawer extends ConsumerWidget {
                       builder: (ctx) => AlertDialog(
                         title: const Text('Medical Disclaimer'),
                         content: const Text(
-                          'BloodWise provides health information for educational purposes only. '
+                          'WiseBlood provides health information for educational purposes only. '
                           'It is not a substitute for professional medical advice, diagnosis, or treatment. '
                           'Always seek the advice of your physician or other qualified health provider '
                           'with any questions you may have regarding a medical condition.',

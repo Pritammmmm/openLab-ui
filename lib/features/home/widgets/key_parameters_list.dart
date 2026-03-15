@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/config/app_theme.dart';
+import '../../../core/widgets/isometric_icon.dart';
 import '../../../core/utils/helpers.dart';
 import '../../report/models/parameter_model.dart';
 
@@ -90,13 +91,12 @@ class _WatchParameterCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  shape: BoxShape.circle,
-                ),
+              Icon3D(
+                icon: isRed
+                    ? Icons.priority_high_rounded
+                    : Icons.remove_rounded,
+                color: statusColor,
+                size: 28,
               ),
               const SizedBox(width: 10),
               Expanded(

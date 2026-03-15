@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/config/app_theme.dart';
+import '../../../core/widgets/isometric_icon.dart';
 import '../../report/models/parameter_model.dart';
 
 class SmartAdviceSection extends StatelessWidget {
@@ -50,7 +51,6 @@ class _AdviceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isRed = parameter.trafficLight == 'red';
     final accentColor = isRed ? AppColors.red : AppColors.yellow;
-    final bgColor = isRed ? AppColors.redBg : AppColors.yellowBg;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -78,19 +78,12 @@ class _AdviceCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: bgColor,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            isRed
-                                ? Icons.warning_amber_rounded
-                                : Icons.remove_red_eye_rounded,
-                            color: accentColor,
-                            size: 16,
-                          ),
+                        Icon3D(
+                          icon: isRed
+                              ? Icons.warning_amber_rounded
+                              : Icons.remove_red_eye_rounded,
+                          color: accentColor,
+                          size: 32,
                         ),
                         const SizedBox(width: 10),
                         Expanded(

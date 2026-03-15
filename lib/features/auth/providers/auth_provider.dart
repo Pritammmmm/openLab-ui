@@ -4,6 +4,7 @@ import '../../history/providers/history_provider.dart';
 import '../../home/providers/home_provider.dart';
 import '../../profile/providers/profile_provider.dart';
 import '../../report/providers/report_provider.dart';
+import '../../subscription/providers/subscription_provider.dart';
 import '../../trends/providers/trends_provider.dart';
 import '../data/auth_api.dart';
 import '../data/auth_repository.dart';
@@ -90,6 +91,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _repository.getCurrentUser();
       if (user != null) {
+        await identifyRevenueCatUser(user.id);
         state = AuthState(
           status: AuthStatus.authenticated,
           user: user,
@@ -106,6 +108,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.loading, error: null);
     try {
       final authResponse = await _repository.signInWithGoogle();
+      await identifyRevenueCatUser(authResponse.user.id);
       _invalidateAllData();
       state = AuthState(
         status: AuthStatus.authenticated,
@@ -123,6 +126,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     try {
       await _repository.logout();
+      await resetRevenueCatUser();
     } finally {
       _invalidateAllData();
       state = const AuthState(status: AuthStatus.unauthenticated);

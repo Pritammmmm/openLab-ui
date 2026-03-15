@@ -125,3 +125,10 @@ class Helpers {
     return fullName.split(' ').first;
   }
 }
+
+extension StringCapitalize on String {
+  String capitalize() {
+    if (isEmpty) return this;
+    return '${this[0].toUpperCase()}${substring(1)}';
+  }
+}
