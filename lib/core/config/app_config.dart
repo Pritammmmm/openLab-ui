@@ -6,7 +6,7 @@ class AppConfig {
 
   // For real device: use your computer's LAN IP
   // For emulator: use 10.0.2.2
-  static const String _host = '192.168.1.2';
+  static const String _host = '192.168.1.4';
   static const int _port = 3000;
 
   static String get baseUrl => 'http://$_host:$_port/api';
@@ -28,7 +28,7 @@ class AppConfig {
   static const int freeReportCap = 3; // lifetime for free tier
 
   // RevenueCat
-  static const String revenueCatGoogleApiKey = 'YOUR_REVENUECAT_GOOGLE_API_KEY';
+  static const String revenueCatGoogleApiKey = 'goog_svkiisdNlllcwPKGgyQMTQAOugQ';
 
   // Entitlement IDs (must match RevenueCat dashboard)
   static const String plusEntitlementId = 'plus';

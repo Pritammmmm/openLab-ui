@@ -25,18 +25,24 @@ class SparklinePreview extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
           boxShadow: [
             BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 28,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: isLoading
             ? _buildLoading()
-            : trend == null || trend!.dataPoints.length < 3
+            : trend == null || trend!.dataPoints.length < 2
                 ? _buildEmpty()
                 : _buildSparkline(),
       ),
@@ -54,6 +60,9 @@ class SparklinePreview extends StatelessWidget {
   }
 
   Widget _buildEmpty() {
+    // onTap != null means trends are unlocked (3+ reports) but no preview data
+    final isUnlocked = onTap != null;
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -63,16 +72,16 @@ class SparklinePreview extends StatelessWidget {
             color: AppColors.primary.withValues(alpha: 0.08),
             shape: BoxShape.circle,
           ),
-          child: const Icon(
-            Icons.trending_up_rounded,
+          child: Icon(
+            isUnlocked ? Icons.show_chart_rounded : Icons.trending_up_rounded,
             size: 22,
             color: AppColors.primary,
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
-          'Unlock Trends',
-          style: TextStyle(
+        Text(
+          isUnlocked ? 'View Trends' : 'Unlock Trends',
+          style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
@@ -80,7 +89,9 @@ class SparklinePreview extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'Upload 3+ reports to\ntrack your progress',
+          isUnlocked
+              ? 'Tap to explore your\nparameter trends'
+              : 'Upload 3+ reports to\ntrack your progress',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 10,

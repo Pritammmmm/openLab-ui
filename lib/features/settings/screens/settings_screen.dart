@@ -134,9 +134,14 @@ class SettingsScreen extends ConsumerWidget {
           _SettingsGroup(
             children: [
               _SettingsTile(
+                icon: Icons.support_agent_rounded,
+                title: 'Customer Support',
+                onTap: () => context.push('/support'),
+              ),
+              _SettingsTile(
                 icon: Icons.privacy_tip_outlined,
                 title: 'Privacy Policy',
-                onTap: () {},
+                onTap: () => context.push('/privacy'),
               ),
               _SettingsTile(
                 icon: Icons.description_outlined,
@@ -489,9 +494,20 @@ class SettingsDrawer extends ConsumerWidget {
             _SettingsGroup(
               children: [
                 _SettingsTile(
+                  icon: Icons.support_agent_rounded,
+                  title: 'Customer Support',
+                  onTap: () {
+                    Navigator.pop(context);
+                    GoRouter.of(context).push('/support');
+                  },
+                ),
+                _SettingsTile(
                   icon: Icons.privacy_tip_outlined,
                   title: 'Privacy Policy',
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.pop(context);
+                    GoRouter.of(context).push('/privacy');
+                  },
                 ),
                 _SettingsTile(
                   icon: Icons.description_outlined,

@@ -7,12 +7,20 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:736028052176:android:1837d36b06cfa0aed66cd5",
+        "mobilesdk_app_id": "1:736028052176:android:499c06d94ef5f5cdd66cd5",
         "android_client_info": {
-          "package_name": "com.example.openlab"
+          "package_name": "com.nextpixel.wiseblood"
         }
       },
       "oauth_client": [
+        {
+          "client_id": "736028052176-jc2ks3shs2r5lbkt6hklv1sdl2l4691m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nextpixel.wiseblood",
+            "certificate_hash": "6a705c4c9b006f26972e15f5f891a080c156abaf"
+          }
+        },
         {
           "client_id": "736028052176-ms93lbp5e4obp5q4qgq9d82m9nfoec11.apps.googleusercontent.com",
           "client_type": 3

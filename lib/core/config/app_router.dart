@@ -1,8 +1,6 @@
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'app_theme.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/home/screens/home_screen.dart';
@@ -17,6 +15,8 @@ import '../../features/report/screens/results_screen.dart';
 import '../../features/trends/screens/health_activity_screen.dart';
 import '../../features/trends/screens/parameter_trend_screen.dart';
 import '../../features/subscription/screens/pricing_screen.dart';
+import '../../features/settings/screens/support_screen.dart';
+import '../../features/settings/screens/privacy_policy_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -109,6 +109,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const PricingScreen(),
       ),
+      GoRoute(
+        path: '/support',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const SupportScreen(),
+      ),
+      GoRoute(
+        path: '/privacy',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: '/trends',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const TrendsScreen(),
+      ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
         builder: (context, state, child) => ScaffoldWithNav(child: child),
@@ -120,10 +135,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/history',
             builder: (context, state) => const HistoryScreen(),
-          ),
-          GoRoute(
-            path: '/trends',
-            builder: (context, state) => const TrendsScreen(),
           ),
         ],
       ),
@@ -143,7 +154,6 @@ class ScaffoldWithNav extends StatelessWidget {
     final location = GoRouterState.of(context).matchedLocation;
     if (location == '/') return 0;
     if (location.startsWith('/history')) return 1;
-    if (location.startsWith('/trends')) return 2;
     return 0;
   }
 
@@ -155,163 +165,170 @@ class ScaffoldWithNav extends StatelessWidget {
       key: scaffoldKey,
       extendBody: true,
       drawer: const SettingsDrawer(),
-      body: child,
-      bottomNavigationBar: _GlassNavBar(
-        currentIndex: index,
-        onTap: (i) {
-          switch (i) {
-            case 0:
-              context.go('/');
-            case 1:
-              context.go('/history');
-            case 2:
-              context.go('/trends');
-          }
-        },
+      body: Stack(
+        children: [
+          child,
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 16,
+            child: FloatingNavBar(
+              currentIndex: index,
+              onTabChanged: (i) {
+                switch (i) {
+                  case 0:
+                    context.go('/');
+                  case 1:
+                    context.go('/history');
+                }
+              },
+              onUploadTap: () => context.push('/upload'),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _GlassNavBar extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// Floating dark pill nav bar with isometric upload button
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _pillBg = Color(0xF2F5F5F7);
+const _accentPurple = Color(0xFF7C5CBF);
+const _accentDark = Color(0xFF5A3E9E);
+const _inactiveGrey = Color(0xFF8E8E93);
+const _activeText = Color(0xFF1D1D1F);
+
+class FloatingNavBar extends StatelessWidget {
   final int currentIndex;
-  final ValueChanged<int> onTap;
+  final ValueChanged<int> onTabChanged;
+  final VoidCallback onUploadTap;
 
-  const _GlassNavBar({required this.currentIndex, required this.onTap});
-
-  static const _items = [
-    (icon: Icons.home_rounded, label: 'Home'),
-    (icon: Icons.history_rounded, label: 'History'),
-    (icon: Icons.show_chart_rounded, label: 'Trends'),
-  ];
+  const FloatingNavBar({
+    super.key,
+    required this.currentIndex,
+    required this.onTabChanged,
+    required this.onUploadTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Container(
-            height: 72,
-            padding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: [
+          // Main pill segment
+          Container(
+            height: 64,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.surface.withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(28),
+              color: _pillBg,
+              borderRadius: BorderRadius.circular(999),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: Colors.black.withValues(alpha: 0.06),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
+                  color: Colors.black.withValues(alpha: 0.12),
                   blurRadius: 24,
                   offset: const Offset(0, 8),
                 ),
                 BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.04),
-                  blurRadius: 40,
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final itemWidth = (constraints.maxWidth) / _items.length;
-                return Stack(
-                  alignment: Alignment.center,
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Sliding pill indicator
-                    AnimatedPositioned(
-                      duration: const Duration(milliseconds: 350),
-                      curve: Curves.easeOutCubic,
-                      left: currentIndex * itemWidth + 4,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 350),
-                        curve: Curves.easeOutCubic,
-                        width: itemWidth - 8,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.15),
-                          ),
-                        ),
-                      ),
+                    _NavTabItem(
+                      icon: Icons.grid_view_rounded,
+                      label: 'Dashboard',
+                      isActive: currentIndex == 0,
+                      onTap: () => onTabChanged(0),
                     ),
-                    // Nav items
-                    Row(
-                      children: List.generate(_items.length, (i) {
-                        final selected = i == currentIndex;
-                        final item = _items[i];
-                        return Expanded(
-                          child: _NavItem(
-                            icon: item.icon,
-                            label: item.label,
-                            selected: selected,
-                            onTap: () => onTap(i),
-                          ),
-                        );
-                      }),
+                    const SizedBox(width: 4),
+                    _NavTabItem(
+                      icon: Icons.access_time_rounded,
+                      label: 'History',
+                      isActive: currentIndex == 1,
+                      onTap: () => onTabChanged(1),
                     ),
                   ],
                 );
               },
             ),
           ),
-        ),
+          // Push upload button to the right
+          const Spacer(),
+          // Circular upload button
+          _IsometricUploadButton(onTap: onUploadTap),
+        ],
       ),
     );
   }
 }
 
-class _NavItem extends StatefulWidget {
+class _NavTabItem extends StatefulWidget {
   final IconData icon;
   final String label;
-  final bool selected;
+  final bool isActive;
   final VoidCallback onTap;
 
-  const _NavItem({
+  const _NavTabItem({
     required this.icon,
     required this.label,
-    required this.selected,
+    required this.isActive,
     required this.onTap,
   });
 
   @override
-  State<_NavItem> createState() => _NavItemState();
+  State<_NavTabItem> createState() => _NavTabItemState();
 }
 
-class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnim;
+class _NavTabItemState extends State<_NavTabItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _bounceController;
+  late Animation<double> _bounceAnim;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _bounceController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 400),
     );
-    _scaleAnim = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.85), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 0.85, end: 1.1), weight: 35),
-      TweenSequenceItem(tween: Tween(begin: 1.1, end: 1.0), weight: 25),
-    ]).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _bounceAnim = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.15), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.15, end: 0.95), weight: 25),
+      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 25),
+    ]).animate(CurvedAnimation(
+      parent: _bounceController,
+      curve: Curves.easeOut,
+    ));
+
+    if (widget.isActive) {
+      _bounceController.value = 1.0;
+    }
   }
 
   @override
-  void didUpdateWidget(covariant _NavItem old) {
+  void didUpdateWidget(covariant _NavTabItem old) {
     super.didUpdateWidget(old);
-    if (!old.selected && widget.selected) {
-      _controller.forward(from: 0);
+    if (!old.isActive && widget.isActive) {
+      _bounceController.forward(from: 0);
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _bounceController.dispose();
     super.dispose();
   }
 
@@ -320,44 +337,239 @@ class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin 
     return GestureDetector(
       onTap: widget.onTap,
       behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.isActive ? 16 : 12,
+          vertical: 14,
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: widget.isActive
+              ? Colors.white
+              : Colors.transparent,
+          border: widget.isActive
+              ? Border.all(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  width: 0.5,
+                )
+              : null,
+          boxShadow: widget.isActive
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              widget.icon,
+              size: 24,
+              color: widget.isActive ? _activeText : _inactiveGrey,
+            ),
+            AnimatedBuilder(
+              animation: _bounceAnim,
+              builder: (context, child) {
+                final show = widget.isActive;
+                final scale = show ? _bounceAnim.value : 0.0;
+                final width = show ? 8.0 + (widget.label.length * 8.5) : 0.0;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  width: width,
+                  child: scale > 0
+                      ? Transform.scale(
+                          scale: scale.clamp(0.0, 1.15),
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: Text(
+                              widget.label,
+                              overflow: TextOverflow.clip,
+                              maxLines: 1,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: _activeText,
+                              ),
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _IsometricUploadButton extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const _IsometricUploadButton({required this.onTap});
+
+  @override
+  State<_IsometricUploadButton> createState() => _IsometricUploadButtonState();
+}
+
+class _IsometricUploadButtonState extends State<_IsometricUploadButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnim;
+  bool _showGlow = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _scaleAnim = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails _) {
+    _controller.forward();
+    setState(() => _showGlow = true);
+  }
+
+  void _onTapUp(TapUpDetails _) {
+    _controller.reverse();
+    setState(() => _showGlow = false);
+    widget.onTap();
+  }
+
+  void _onTapCancel() {
+    _controller.reverse();
+    setState(() => _showGlow = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
       child: AnimatedBuilder(
         animation: _scaleAnim,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: widget.selected ? _scaleAnim.value : 1.0,
-            child: child,
-          );
-        },
-        child: SizedBox(
-          height: 56,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
-                child: Icon(
-                  widget.icon,
-                  size: widget.selected ? 26 : 23,
-                  color: widget.selected ? AppColors.primary : AppColors.textMuted,
-                ),
+        builder: (context, child) => Transform.scale(
+          scale: _scaleAnim.value,
+          child: child,
+        ),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _pillBg,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
-              const SizedBox(height: 3),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
-                style: TextStyle(
-                  fontSize: widget.selected ? 11.5 : 10.5,
-                  fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w400,
-                  color: widget.selected ? AppColors.primary : AppColors.textMuted,
-                  letterSpacing: widget.selected ? 0.2 : 0,
-                ),
-                child: Text(widget.label),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
+              if (_showGlow)
+                BoxShadow(
+                  color: _accentPurple.withValues(alpha: 0.25),
+                  blurRadius: 16,
+                  spreadRadius: 1,
+                ),
             ],
+          ),
+          child: const Icon(
+            Icons.add_rounded,
+            size: 30,
+            color: _accentPurple,
           ),
         ),
       ),
     );
   }
+}
+
+class _IsometricUploadIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+
+    // Isometric base plane
+    final basePaint = Paint()
+      ..color = _accentDark
+      ..style = PaintingStyle.fill;
+
+    final basePath = Path()
+      ..moveTo(cx, cy + 6)
+      ..lineTo(cx + 10, cy + 2)
+      ..lineTo(cx, cy - 2)
+      ..lineTo(cx - 10, cy + 2)
+      ..close();
+    canvas.drawPath(basePath, basePaint);
+
+    // Isometric base top face (lighter)
+    final topFacePaint = Paint()
+      ..color = _accentPurple.withValues(alpha: 0.5)
+      ..style = PaintingStyle.fill;
+
+    final topFacePath = Path()
+      ..moveTo(cx, cy - 2)
+      ..lineTo(cx + 10, cy + 2)
+      ..lineTo(cx + 10, cy)
+      ..lineTo(cx, cy - 4)
+      ..lineTo(cx - 10, cy)
+      ..lineTo(cx - 10, cy + 2)
+      ..close();
+    canvas.drawPath(topFacePath, topFacePaint);
+
+    // Arrow shaft
+    final arrowPaint = Paint()
+      ..color = _accentPurple
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawLine(
+      Offset(cx, cy - 2),
+      Offset(cx, cy - 14),
+      arrowPaint,
+    );
+
+    // Arrow head
+    final headPaint = Paint()
+      ..color = _accentPurple
+      ..style = PaintingStyle.fill;
+
+    final headPath = Path()
+      ..moveTo(cx, cy - 18)
+      ..lineTo(cx - 5, cy - 11)
+      ..lineTo(cx + 5, cy - 11)
+      ..close();
+    canvas.drawPath(headPath, headPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

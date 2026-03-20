@@ -22,8 +22,9 @@ class HealthActivityScreen extends ConsumerWidget {
 
     final historyState =
         ref.watch(historyNotifierProvider(selectedProfile.id));
-    final reports = historyState.reports;
-    final dailyCells = buildDetailedGrid(reports);
+    final cells = buildMonthlyGrid(historyState.reports);
+    final activeDays =
+        cells.where((c) => c.level != HeatmapLevel.empty).length;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -33,9 +34,25 @@ class HealthActivityScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SummaryRow(dailyCells: dailyCells),
+            // Summary chips
+            Row(
+              children: [
+                _SummaryChip(
+                  label: 'Active Months',
+                  value: '$activeDays',
+                  icon: Icons.calendar_today_rounded,
+                ),
+                const SizedBox(width: 12),
+                _SummaryChip(
+                  label: 'Period',
+                  value: '12 months',
+                  icon: Icons.date_range_rounded,
+                ),
+              ],
+            ),
             const SizedBox(height: 24),
 
+            // Monthly grid — 3 columns x 4 rows
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -50,10 +67,31 @@ class HealthActivityScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              child: _LinkedHeatmap(dailyCells: dailyCells),
+              child: Column(
+                children: List.generate(4, (row) {
+                  return Padding(
+                    padding: EdgeInsets.only(top: row > 0 ? 10 : 0),
+                    child: Row(
+                      children: List.generate(3, (col) {
+                        final index = row * 3 + col;
+                        if (index >= cells.length) {
+                          return const Expanded(child: SizedBox.shrink());
+                        }
+                        return Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(left: col > 0 ? 10 : 0),
+                            child: _MonthCard(cell: cells[index]),
+                          ),
+                        );
+                      }),
+                    ),
+                  );
+                }),
+              ),
             ),
-
             const SizedBox(height: 20),
+
+            // Legend
             _Legend(),
           ],
         ),
@@ -84,262 +122,115 @@ class HealthActivityScreen extends ConsumerWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Linked heatmap — month labels + grid scroll together
+// Month Card — a single month block with label and score
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _LinkedHeatmap extends StatefulWidget {
-  final Map<String, HeatmapCell> dailyCells;
+class _MonthCard extends StatefulWidget {
+  final HeatmapCell cell;
 
-  const _LinkedHeatmap({required this.dailyCells});
+  const _MonthCard({required this.cell});
 
   @override
-  State<_LinkedHeatmap> createState() => _LinkedHeatmapState();
+  State<_MonthCard> createState() => _MonthCardState();
 }
 
-class _LinkedHeatmapState extends State<_LinkedHeatmap> {
-  final ScrollController _scrollController = ScrollController();
+class _MonthCardState extends State<_MonthCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _glow;
 
-  static const double _cellSize = 11;
-  static const double _cellGap = 3;
-  static const double _colWidth = _cellSize + _cellGap;
-  static const double _dayLabelWidth = 28;
-  static const _dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-  late final List<MonthInfo> _months;
-  late final DateTime _gridStart;
-  late final DateTime _gridEnd;
-  late final int _totalWeeks;
-  late final List<_MonthSpan> _monthSpans;
+  bool get _shouldPulse =>
+      widget.cell.isCurrentMonth && widget.cell.level != HeatmapLevel.empty;
 
   @override
   void initState() {
     super.initState();
-
-    _months = getLast12Months();
-    final months = _months;
-    // Grid covers: first day of current month → last day of 12th month
-    final start = DateTime(months.first.year, months.first.month, 1);
-    final lastMonth = months.last;
-    _gridEnd = DateTime(lastMonth.year, lastMonth.month + 1, 0);
-
-    // Pad to Sunday for week alignment
-    _gridStart = start.subtract(Duration(days: start.weekday % 7));
-    final totalDays = _gridEnd.difference(_gridStart).inDays + 1;
-    _totalWeeks = (totalDays / 7).ceil();
-    _monthSpans = _buildMonthSpans(months);
-  }
-
-  List<_MonthSpan> _buildMonthSpans(List<MonthInfo> months) {
-    // Build a set of valid months
-    final validKeys = months.map((m) => '${m.year}-${m.month}').toSet();
-
-    final spans = <_MonthSpan>[];
-    int? currentMonth;
-    int? currentYear;
-    int spanStart = 0;
-
-    for (int w = 0; w < _totalWeeks; w++) {
-      final midWeek = _gridStart.add(Duration(days: w * 7 + 3));
-      if (midWeek.month != currentMonth || midWeek.year != currentYear) {
-        if (currentMonth != null && validKeys.contains('$currentYear-$currentMonth')) {
-          spans.add(_MonthSpan(
-            month: currentMonth,
-            year: currentYear!,
-            startWeek: spanStart,
-            weekCount: w - spanStart,
-          ));
-        }
-        currentMonth = midWeek.month;
-        currentYear = midWeek.year;
-        spanStart = w;
-      }
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+    if (_shouldPulse) {
+      _controller.repeat(reverse: true);
     }
-    if (currentMonth != null && validKeys.contains('$currentYear-$currentMonth')) {
-      spans.add(_MonthSpan(
-        month: currentMonth,
-        year: currentYear!,
-        startWeek: spanStart,
-        weekCount: _totalWeeks - spanStart,
-      ));
-    }
-    return spans;
+    _glow = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final gridWidth = _totalWeeks * _colWidth;
+    final color = HeatmapColors.fromLevel(widget.cell.level);
+    final isActive = widget.cell.level != HeatmapLevel.empty;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SingleChildScrollView(
-          controller: _scrollController,
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: _dayLabelWidth + gridWidth,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Month labels
-                Padding(
-                  padding: EdgeInsets.only(left: _dayLabelWidth),
-                  child: SizedBox(
-                    height: 18,
-                    child: Row(
-                      children: _monthSpans.map((span) {
-                        return SizedBox(
-                          width: span.weekCount * _colWidth,
-                          child: Text(
-                            span.label,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                        );
-                      }).toList(),
+    return AnimatedBuilder(
+      animation: _glow,
+      builder: (context, child) {
+        final t = _shouldPulse ? _glow.value : 0.0;
+        return Container(
+          height: 72,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: color.withValues(
+                          alpha: _shouldPulse ? 0.25 + t * 0.35 : 0.35),
+                      blurRadius: _shouldPulse ? 4 + t * 10 : 6,
+                      spreadRadius: _shouldPulse ? t * 3 : 1,
                     ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-
-                // Day labels + grid
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Day-of-week labels
-                    Column(
-                      children: List.generate(7, (i) => Padding(
-                        padding: const EdgeInsets.only(bottom: _cellGap),
-                        child: SizedBox(
-                          height: _cellSize,
-                          width: _dayLabelWidth,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              _dayLabels[i],
-                              style: const TextStyle(
-                                fontSize: 9,
-                                color: AppColors.textMuted,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ),
-                      )),
-                    ),
-
-                    // Grid columns (weeks)
-                    ...List.generate(_totalWeeks, (weekIndex) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: _cellGap),
-                        child: Column(
-                          children: List.generate(7, (dayIndex) {
-                            final dayOffset = weekIndex * 7 + dayIndex;
-                            final date = _gridStart.add(Duration(days: dayOffset));
-
-                            // Skip dates outside the 12-month range
-                            if (date.isBefore(DateTime(_months.first.year, _months.first.month, 1)) ||
-                                date.isAfter(_gridEnd)) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: _cellGap),
-                                child: SizedBox(width: _cellSize, height: _cellSize),
-                              );
-                            }
-
-                            final now = DateTime.now();
-                            // Future dates are always empty
-                            final isFuture = date.isAfter(now);
-                            final key = '${date.year}-${date.month}-${date.day}';
-                            final cell = isFuture ? null : widget.dailyCells[key];
-                            final level = cell?.level ?? HeatmapLevel.empty;
-
-                            final delay = (weekIndex * 6).clamp(0, 300);
-
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: _cellGap),
-                              child: AnimatedHeatmapCell(
-                                level: level,
-                                size: _cellSize,
-                                borderRadius: 3,
-                                delayMs: delay,
-                              ),
-                            );
-                          }),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-              ],
+                  ]
+                : null,
+          ),
+          child: child,
+        );
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            widget.cell.monthLabel,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isActive ? Colors.white : AppColors.textMuted,
             ),
           ),
-        ),
-      ],
+          if (isActive)
+            Text(
+              '${widget.cell.score}',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            )
+          else
+            Text(
+              '—',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMuted.withValues(alpha: 0.4),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
 
-class _MonthSpan {
-  final int month;
-  final int year;
-  final int startWeek;
-  final int weekCount;
-
-  static const _names = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-
-  _MonthSpan({
-    required this.month,
-    required this.year,
-    required this.startWeek,
-    required this.weekCount,
-  });
-
-  String get label => _names[month - 1];
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Summary row
+// Summary Chip
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _SummaryRow extends StatelessWidget {
-  final Map<String, HeatmapCell> dailyCells;
-
-  const _SummaryRow({required this.dailyCells});
-
-  @override
-  Widget build(BuildContext context) {
-    final activeDays =
-        dailyCells.values.where((c) => c.level != HeatmapLevel.empty).length;
-    final totalDays = dailyCells.length;
-
-    return Row(
-      children: [
-        _SummaryChip(
-          label: 'Active Days',
-          value: '$activeDays',
-          icon: Icons.calendar_today_rounded,
-        ),
-        const SizedBox(width: 12),
-        _SummaryChip(
-          label: 'Period',
-          value: '$totalDays days',
-          icon: Icons.date_range_rounded,
-        ),
-      ],
-    );
-  }
-}
 
 class _SummaryChip extends StatelessWidget {
   final String label;
@@ -416,16 +307,22 @@ class _Legend extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Text('Less',
-              style: TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.w500)),
+              style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w500)),
           const SizedBox(width: 8),
           _legendCell(HeatmapLevel.empty),
-          _legendCell(HeatmapLevel.critical),
-          _legendCell(HeatmapLevel.attention),
-          _legendCell(HeatmapLevel.mild),
+          _legendCell(HeatmapLevel.low),
+          _legendCell(HeatmapLevel.medium),
+          _legendCell(HeatmapLevel.high),
           _legendCell(HeatmapLevel.excellent),
           const SizedBox(width: 8),
           const Text('More',
-              style: TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.w500)),
+              style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w500)),
         ],
       ),
     );

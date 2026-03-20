@@ -52,19 +52,34 @@ final availableParametersProvider =
 /// Currently selected parameter name on the detail screen.
 final selectedDetailParameterProvider = StateProvider<String?>((ref) => null);
 
-/// Fetches trend data for the sparkline preview (most critical parameter).
+/// Fetches trend data for the sparkline preview.
+/// Tries the most critical parameter first, then falls back to others
+/// to find one with at least 2 data points for a meaningful sparkline.
 final trendPreviewProvider =
     FutureProvider.family<TrendParameter?, String>((ref, profileId) async {
-  final critical = ref.watch(mostCriticalParameterProvider(profileId));
-  if (critical == null) return null;
+  final allParams = ref.watch(availableParametersProvider(profileId));
+  if (allParams.isEmpty) return null;
 
+  final critical = ref.watch(mostCriticalParameterProvider(profileId));
   final repo = ref.watch(trendsRepositoryProvider);
-  try {
-    final result = await repo.getTrends(profileId, parameterName: critical.name);
-    if (result.isNotEmpty && result.first.dataPoints.length >= 3) {
-      return result.first;
-    }
-  } catch (_) {}
+
+  // Build ordered list: most critical first, then the rest
+  final paramsToTry = <String>[
+    if (critical != null) critical.name,
+    ...allParams
+        .where((p) => p.name != critical?.name)
+        .map((p) => p.name),
+  ];
+
+  // Try each parameter until we find one with >= 2 data points
+  for (final name in paramsToTry) {
+    try {
+      final result = await repo.getTrends(profileId, parameterName: name);
+      if (result.isNotEmpty && result.first.dataPoints.length >= 2) {
+        return result.first;
+      }
+    } catch (_) {}
+  }
   return null;
 });
 

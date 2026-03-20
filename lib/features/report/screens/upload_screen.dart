@@ -124,7 +124,6 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   @override
   Widget build(BuildContext context) {
     final uploadState = ref.watch(uploadNotifierProvider);
-    final profiles = ref.watch(profilesProvider);
     final selectedProfile = ref.watch(selectedProfileProvider);
 
     ref.listen<UploadState>(uploadNotifierProvider, (prev, next) {
@@ -248,45 +247,63 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Profile selector
-              Text(
-                'This report is for:',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              profiles.when(
-                data: (list) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius:
-                        BorderRadius.circular(AppTheme.buttonRadius),
-                    border: Border.all(color: AppColors.surfaceBorder),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: selectedProfile?.id ?? list.first.id,
-                      isExpanded: true,
-                      items: list
-                          .map((p) => DropdownMenuItem(
-                                value: p.id,
-                                child: Text(p.name),
-                              ))
-                          .toList(),
-                      onChanged: (id) {
-                        final idx = list.indexWhere((p) => p.id == id);
-                        if (idx >= 0) {
-                          ref
-                              .read(selectedProfileIndexProvider.notifier)
-                              .state = idx;
-                        }
-                      },
-                    ),
+              // Profile confirmation reminder
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.yellowBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppColors.yellow.withValues(alpha: 0.25),
                   ),
                 ),
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (_, __) => const Text('Failed to load profiles'),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.yellow.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.person_pin_rounded,
+                        size: 20,
+                        color: AppColors.yellow,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Are you sure this report is for',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                              height: 1.3,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            selectedProfile?.name ?? 'Unknown',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      size: 22,
+                      color: AppColors.yellow,
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 32),
 

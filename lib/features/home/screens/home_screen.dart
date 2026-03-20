@@ -50,6 +50,7 @@ class HomeScreen extends ConsumerWidget {
               ref.invalidate(latestReportProvider(selectedProfile.id));
               ref.invalidate(latestFullReportProvider(selectedProfile.id));
               ref.invalidate(historyNotifierProvider(selectedProfile.id));
+              ref.invalidate(trendPreviewProvider(selectedProfile.id));
             }
           },
           child: CustomScrollView(
@@ -77,16 +78,7 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
       ),
-      floatingActionButton: selectedProfile != null
-          ? Padding(
-              padding: const EdgeInsets.only(bottom: 72),
-              child: FloatingActionButton.extended(
-                onPressed: () => context.push('/upload'),
-                icon: const Icon(Icons.add_a_photo_rounded),
-                label: const Text('Upload Report'),
-              ),
-            )
-          : null,
+      floatingActionButton: null,
     );
   }
 }
@@ -122,8 +114,9 @@ class _Header extends ConsumerWidget {
               children: [
                 Text(
                   _timeGreeting(),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textMuted,
+                        fontSize: 12,
                       ),
                 ),
                 const SizedBox(height: 2),
@@ -573,11 +566,17 @@ class _LatestReportCard extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 12,
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 28,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 6,
               offset: const Offset(0, 2),
             ),
           ],
@@ -633,7 +632,7 @@ class _ActivityRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyState = ref.watch(historyNotifierProvider(profileId));
-    final previewCells = buildPreviewGrid(historyState.reports);
+    final previewCells = buildMonthlyGrid(historyState.reports);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -667,18 +666,20 @@ class _SparklineBox extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trendAsync = ref.watch(trendPreviewProvider(profileId));
+    final historyState = ref.watch(historyNotifierProvider(profileId));
+    final isUnlocked = historyState.reports.length >= 3;
 
     return trendAsync.when(
       data: (trend) => SparklinePreview(
-        trend: trend,
-        onTap: () => context.push('/parameter-trend'),
+        trend: isUnlocked ? trend : null,
+        onTap: isUnlocked ? () => context.push('/parameter-trend') : null,
       ),
       loading: () => SparklinePreview(
-        isLoading: true,
-        onTap: () => context.push('/parameter-trend'),
+        isLoading: isUnlocked,
+        onTap: isUnlocked ? () => context.push('/parameter-trend') : null,
       ),
       error: (_, __) => SparklinePreview(
-        onTap: () => context.push('/parameter-trend'),
+        onTap: isUnlocked ? () => context.push('/parameter-trend') : null,
       ),
     );
   }
