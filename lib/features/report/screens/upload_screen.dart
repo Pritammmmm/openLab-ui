@@ -9,6 +9,9 @@ import '../../../core/config/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/isometric_icon.dart';
 import '../../home/providers/home_provider.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../subscription/models/subscription_plan.dart';
+import '../../subscription/providers/subscription_provider.dart';
 import '../providers/upload_provider.dart';
 
 class UploadScreen extends ConsumerStatefulWidget {
@@ -166,7 +169,9 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                       color: AppColors.textSecondary,
                     ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              _UploadLimitBanner(),
+              const SizedBox(height: 16),
               _UploadOption(
                 icon: Icons.camera_alt_rounded,
                 title: 'Take a Photo',
@@ -375,6 +380,82 @@ class _UploadOption extends StatelessWidget {
                 color: AppColors.textMuted),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _UploadLimitBanner extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activePlan = ref.watch(activePlanProvider);
+    final isFree = activePlan == PlanTier.free;
+
+    if (!isFree) return const SizedBox.shrink();
+
+    // Use the user model's report count as an estimate
+    // The exact enforcement happens server-side
+    final user = ref.watch(currentUserProvider);
+    final totalReports = user?.usage?.totalReports ?? 0;
+    const freeLimit = 3;
+    final remaining = (freeLimit - totalReports).clamp(0, freeLimit);
+    final isAtCap = remaining <= 0;
+
+    final bgColor = isAtCap ? AppColors.redBg : AppColors.yellowBg;
+    final accentColor = isAtCap ? AppColors.red : AppColors.yellow;
+    final icon = isAtCap ? Icons.block_rounded : Icons.info_outline_rounded;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accentColor.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 20, color: accentColor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isAtCap
+                      ? 'Free upload limit reached'
+                      : '$remaining of $freeLimit free reports remaining',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                GestureDetector(
+                  onTap: () => GoRouter.of(context).push('/pricing'),
+                  child: Text(
+                    isAtCap
+                        ? 'Upgrade to Plus for unlimited reports'
+                        : 'Upgrade for unlimited uploads',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

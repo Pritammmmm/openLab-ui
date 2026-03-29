@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "736028052176-kupn46er7ljcqbuu9c81pbfbgo3otdt4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nextpixel.wiseblood",
+            "certificate_hash": "b71b9c8867d2109a3e74fce44511a99f7a0d8f1c"
+          }
+        },
+        {
           "client_id": "736028052176-ms93lbp5e4obp5q4qgq9d82m9nfoec11.apps.googleusercontent.com",
           "client_type": 3
         }

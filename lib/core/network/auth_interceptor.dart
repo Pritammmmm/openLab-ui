@@ -11,6 +11,7 @@ class AuthInterceptor extends Interceptor {
   final void Function() _onSessionExpired;
 
   bool _isRefreshing = false;
+  bool _sessionExpired = false;
   final List<_RetryRequest> _pendingRequests = [];
 
   AuthInterceptor({
@@ -33,9 +34,19 @@ class AuthInterceptor extends Interceptor {
     handler.next(options);
   }
 
+  /// Reset the expired flag when a new session starts (e.g. after login).
+  void resetSessionState() {
+    _sessionExpired = false;
+  }
+
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode != 401) {
+      return handler.next(err);
+    }
+
+    // If session is already marked expired, reject immediately — don't retry
+    if (_sessionExpired) {
       return handler.next(err);
     }
 
@@ -111,6 +122,7 @@ class AuthInterceptor extends Interceptor {
       debugPrint('Token refresh failed: $e');
       _pendingRequests.clear();
       _isRefreshing = false;
+      _sessionExpired = true;
       await _storage.clearTokens();
       _onSessionExpired();
       return handler.next(err);

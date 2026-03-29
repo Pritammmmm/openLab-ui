@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/network/api_endpoints.dart';
+import '../../../core/network/dio_client.dart';
 import '../models/subscription_plan.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,7 +22,22 @@ Future<void> initRevenueCat() async {
 
 /// Identify the RevenueCat user after login.
 Future<void> identifyRevenueCatUser(String userId) async {
-  await Purchases.logIn(userId);
+  print('[RC] Logging in with userId: $userId');
+  final result = await Purchases.logIn(userId);
+  print('[RC] LogIn result — created: ${result.created}');
+  print('[RC] App user ID: ${result.customerInfo.originalAppUserId}');
+  print('[RC] Entitlements after login: ${result.customerInfo.entitlements.all.keys.toList()}');
+
+  // Restore purchases to link any orphaned Google Play purchases to this user
+  try {
+    final restored = await Purchases.restorePurchases();
+    print('[RC] Restore done — entitlements: ${restored.entitlements.all.keys.toList()}');
+    for (final entry in restored.entitlements.all.entries) {
+      print('[RC]   ${entry.key}: active=${entry.value.isActive}, product=${entry.value.productIdentifier}');
+    }
+  } catch (e) {
+    print('[RC] Restore failed: $e');
+  }
 }
 
 /// Reset RevenueCat identity on logout.
@@ -50,17 +68,28 @@ final customerInfoProvider = StreamProvider<CustomerInfo>((ref) {
   return controller.stream;
 });
 
-/// Active plan tier derived from RevenueCat entitlements.
-final activePlanProvider = Provider<PlanTier>((ref) {
-  final info = ref.watch(customerInfoProvider).valueOrNull;
-  if (info == null) return PlanTier.free;
+/// Backend-derived plan, set by AuthNotifier after login/sync.
+/// Acts as fallback when RevenueCat has credential issues.
+final backendPlanProvider = StateProvider<PlanTier>((ref) => PlanTier.free);
 
-  if (info.entitlements.all[AppConfig.familyEntitlementId]?.isActive == true) {
-    return PlanTier.family;
+/// Active plan tier — uses RevenueCat as primary, backend user model as fallback.
+/// This ensures the UI stays unlocked even if RevenueCat has credential issues.
+final activePlanProvider = Provider<PlanTier>((ref) {
+  // Primary: RevenueCat entitlements
+  final info = ref.watch(customerInfoProvider).valueOrNull;
+  if (info != null) {
+    if (info.entitlements.all[AppConfig.familyEntitlementId]?.isActive == true) {
+      return PlanTier.family;
+    }
+    if (info.entitlements.all[AppConfig.plusEntitlementId]?.isActive == true) {
+      return PlanTier.plus;
+    }
   }
-  if (info.entitlements.all[AppConfig.plusEntitlementId]?.isActive == true) {
-    return PlanTier.plus;
-  }
+
+  // Fallback: backend-reported plan (set from user model after auth/sync)
+  final backendPlan = ref.watch(backendPlanProvider);
+  if (backendPlan != PlanTier.free) return backendPlan;
+
   return PlanTier.free;
 });
 
@@ -101,9 +130,16 @@ String? _packageId(PlanTier tier, bool isAnnual) {
 
 /// Execute a purchase. Returns true on success, false on user cancel.
 /// Throws on other errors.
-Future<bool> purchasePackage(Package package) async {
+/// When a [dioClient] is provided, syncs the purchase with the backend.
+Future<bool> purchasePackage(Package package, {DioClient? dioClient}) async {
   try {
     await Purchases.purchase(PurchaseParams.package(package));
+
+    // Sync with backend so it knows about the purchase immediately
+    if (dioClient != null) {
+      await syncSubscriptionWithBackend(dioClient);
+    }
+
     return true;
   } on PlatformException catch (e) {
     final code = PurchasesErrorHelper.getErrorCode(e);
@@ -111,6 +147,17 @@ Future<bool> purchasePackage(Package package) async {
       return false;
     }
     rethrow;
+  }
+}
+
+/// Tell the backend to verify our subscription with RevenueCat and update the DB.
+/// Fire-and-forget safe — errors are logged but don't break the purchase flow.
+Future<void> syncSubscriptionWithBackend(DioClient dioClient) async {
+  try {
+    await dioClient.post(ApiEndpoints.subscriptionSync, data: {});
+    debugPrint('✓ Subscription synced with backend');
+  } catch (e) {
+    debugPrint('⚠ Subscription sync failed (will retry on next app launch): $e');
   }
 }
 

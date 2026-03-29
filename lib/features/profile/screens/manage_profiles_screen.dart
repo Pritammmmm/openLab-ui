@@ -17,8 +17,9 @@ class ManageProfilesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profilesAsync = ref.watch(manageProfilesProvider);
     final user = ref.watch(currentUserProvider);
+    final plan = user?.subscription.plan;
     final isPremium = user?.subscription.isPremium ?? false;
-    final maxAllowed = maxProfilesForPlan(user?.subscription.plan);
+    final maxAllowed = maxProfilesForPlan(plan);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -74,7 +75,53 @@ class ManageProfilesScreen extends ConsumerWidget {
                 )
               else if (!isPremium)
                 _UpgradeCard(context: context)
+              else if (atCap && plan == 'plus')
+                // Plus user at cap — suggest Family upgrade
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.info_outline_rounded,
+                                color: AppColors.primary, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Plus plan supports up to $maxAllowed profiles. '
+                                'Upgrade to Family for up to 6.',
+                                style:
+                                    Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: AppButton(
+                            label: 'Upgrade to Family',
+                            icon: Icons.family_restroom_rounded,
+                            onPressed: () => GoRouter.of(context).push('/pricing'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               else
+                // Family user at cap
                 Padding(
                   padding: const EdgeInsets.only(top: 16),
                   child: Container(
@@ -223,9 +270,29 @@ class _ProfileTile extends ConsumerWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await ref
-                  .read(manageProfilesProvider.notifier)
-                  .deleteProfile(profile.id);
+              try {
+                await ref
+                    .read(manageProfilesProvider.notifier)
+                    .deleteProfile(profile.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('"${profile.name}" deleted'),
+                      backgroundColor: AppColors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          e.toString().replaceFirst('Exception: ', '')),
+                      backgroundColor: AppColors.red,
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('Delete',
                 style: TextStyle(color: AppColors.red)),

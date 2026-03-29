@@ -8,11 +8,13 @@ import 'auth_interceptor.dart';
 
 class DioClient {
   late final Dio _dio;
+  late final AuthInterceptor _authInterceptor;
   final SecureStorage _storage;
   final Connectivity _connectivity;
   final void Function() _onSessionExpired;
 
   Dio get dio => _dio;
+  AuthInterceptor get authInterceptor => _authInterceptor;
 
   DioClient({
     required SecureStorage storage,
@@ -33,15 +35,17 @@ class DioClient {
       ),
     );
 
+    _authInterceptor = AuthInterceptor(
+      storage: _storage,
+      dio: Dio(BaseOptions(
+        connectTimeout: AppConfig.connectTimeout,
+        receiveTimeout: AppConfig.receiveTimeout,
+      )),
+      onSessionExpired: _onSessionExpired,
+    );
+
     _dio.interceptors.addAll([
-      AuthInterceptor(
-        storage: _storage,
-        dio: Dio(BaseOptions(
-          connectTimeout: AppConfig.connectTimeout,
-          receiveTimeout: AppConfig.receiveTimeout,
-        )),
-        onSessionExpired: _onSessionExpired,
-      ),
+      _authInterceptor,
       _SnakeToCamelInterceptor(),
       if (kDebugMode) _LoggingInterceptor(),
     ]);

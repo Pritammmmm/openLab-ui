@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
+import '../../features/auth/screens/welcome_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/history/screens/history_screen.dart';
 import '../../features/trends/screens/trends_screen.dart';
@@ -45,17 +47,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuthenticated = authState.status == AuthStatus.authenticated;
       final isLoading = authState.status == AuthStatus.loading ||
           authState.status == AuthStatus.initial;
-      final isLoginRoute = state.matchedLocation == '/login';
+      final path = state.matchedLocation;
+      final isPublicRoute = path == '/login' || path == '/privacy' || path == '/welcome';
 
       if (isLoading) {
-        return isLoginRoute ? null : '/login';
+        return isPublicRoute ? null : '/login';
       }
 
-      if (!isAuthenticated && !isLoginRoute) {
+      if (!isAuthenticated && !isPublicRoute) {
         return '/login';
       }
 
-      if (isAuthenticated && isLoginRoute) {
+      if (isAuthenticated && path == '/login') {
         return '/';
       }
 
@@ -65,6 +68,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/welcome',
+        builder: (context, state) => const WelcomeScreen(),
       ),
       GoRoute(
         path: '/profile-setup',
@@ -150,6 +157,9 @@ class ScaffoldWithNav extends StatelessWidget {
   /// Global key so any child screen can open the drawer.
   static final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  /// Toggle to hide the nav bar (e.g. when a bottom sheet is open).
+  static final navBarVisible = ValueNotifier<bool>(true);
+
   static int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     if (location == '/') return 0;
@@ -172,17 +182,28 @@ class ScaffoldWithNav extends StatelessWidget {
             left: 0,
             right: 0,
             bottom: 16,
-            child: FloatingNavBar(
-              currentIndex: index,
-              onTabChanged: (i) {
-                switch (i) {
-                  case 0:
-                    context.go('/');
-                  case 1:
-                    context.go('/history');
-                }
-              },
-              onUploadTap: () => context.push('/upload'),
+            child: ValueListenableBuilder<bool>(
+              valueListenable: ScaffoldWithNav.navBarVisible,
+              builder: (_, visible, child) => AnimatedOpacity(
+                opacity: visible ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: IgnorePointer(
+                  ignoring: !visible,
+                  child: child,
+                ),
+              ),
+              child: FloatingNavBar(
+                currentIndex: index,
+                onTabChanged: (i) {
+                  switch (i) {
+                    case 0:
+                      context.go('/');
+                    case 1:
+                      context.go('/history');
+                  }
+                },
+                onUploadTap: () => context.push('/upload'),
+              ),
             ),
           ),
         ],
@@ -499,10 +520,16 @@ class _IsometricUploadButtonState extends State<_IsometricUploadButton>
                 ),
             ],
           ),
-          child: const Icon(
-            Icons.add_rounded,
-            size: 30,
-            color: _accentPurple,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: SvgPicture.asset(
+              'assets/images/ai-hospital.svg',
+              fit: BoxFit.contain,
+              colorFilter: const ColorFilter.mode(
+                _activeText,
+                BlendMode.srcIn,
+              ),
+            ),
           ),
         ),
       ),

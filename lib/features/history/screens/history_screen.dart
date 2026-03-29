@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/config/app_theme.dart';
+import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_error_widget.dart';
 import '../../../core/widgets/app_loading.dart';
 import '../../home/providers/home_provider.dart';
+import '../../subscription/models/subscription_plan.dart';
+import '../../subscription/providers/subscription_provider.dart';
 import '../providers/history_provider.dart';
 import '../widgets/report_history_card.dart';
 import '../../home/widgets/profile_switcher.dart';
@@ -59,6 +62,8 @@ class _HistoryList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyState = ref.watch(historyNotifierProvider(profileId));
+    final activePlan = ref.watch(activePlanProvider);
+    final isFree = activePlan == PlanTier.free;
 
     if (historyState.error != null && historyState.reports.isEmpty) {
       return AppErrorWidget(
@@ -104,36 +109,90 @@ class _HistoryList extends ConsumerWidget {
       color: AppColors.primary,
       onRefresh: () =>
           ref.read(historyNotifierProvider(profileId).notifier).refresh(),
-      child: NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          if (notification is ScrollEndNotification &&
-              notification.metrics.extentAfter < 200) {
-            ref
-                .read(historyNotifierProvider(profileId).notifier)
-                .loadMore();
-          }
-          return false;
-        },
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount:
-              historyState.reports.length + (historyState.hasMore ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index == historyState.reports.length) {
-              return const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
-              );
-            }
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: historyState.reports.length +
+            (isFree && historyState.reports.isNotEmpty ? 1 : 0) +
+            (historyState.hasMore && !isFree ? 1 : 0),
+        itemBuilder: (context, index) {
+          // Report cards
+          if (index < historyState.reports.length) {
             final report = historyState.reports[index];
             return ReportHistoryCard(
               report: report,
               onTap: () => context.push('/results/${report.id}'),
             );
-          },
+          }
+
+          // Free user: upgrade banner after last visible report
+          if (isFree) {
+            return _HistoryUpgradeBanner();
+          }
+
+          // Paid user: loading indicator for pagination
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HistoryUpgradeBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.15),
         ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.history_rounded,
+                color: AppColors.primary, size: 22),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'See your full report history',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Upgrade to Plus to access all your past reports and track changes over time.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  height: 1.4,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: AppButton(
+              label: 'Upgrade to Plus',
+              icon: Icons.star_rounded,
+              onPressed: () => GoRouter.of(context).push('/pricing'),
+            ),
+          ),
+        ],
       ),
     );
   }

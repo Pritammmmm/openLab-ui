@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../home/providers/home_provider.dart';
 import '../../report/models/parameter_model.dart';
+import '../../subscription/models/subscription_plan.dart';
+import '../../subscription/providers/subscription_provider.dart';
 import '../data/trends_repository.dart';
 import 'trends_provider.dart';
 
@@ -57,6 +59,10 @@ final selectedDetailParameterProvider = StateProvider<String?>((ref) => null);
 /// to find one with at least 2 data points for a meaningful sparkline.
 final trendPreviewProvider =
     FutureProvider.family<TrendParameter?, String>((ref, profileId) async {
+  // Trends require plus plan or higher — skip API calls for free users
+  final plan = ref.watch(activePlanProvider);
+  if (plan == PlanTier.free) return null;
+
   final allParams = ref.watch(availableParametersProvider(profileId));
   if (allParams.isEmpty) return null;
 
@@ -86,6 +92,9 @@ final trendPreviewProvider =
 /// Fetches trend data for the detail screen's selected parameter.
 final trendDetailProvider =
     FutureProvider.family<TrendParameter?, String>((ref, profileId) async {
+  final plan = ref.watch(activePlanProvider);
+  if (plan == PlanTier.free) return null;
+
   final selected = ref.watch(selectedDetailParameterProvider);
   final critical = ref.watch(mostCriticalParameterProvider(profileId));
   final paramName = selected ?? critical?.name;

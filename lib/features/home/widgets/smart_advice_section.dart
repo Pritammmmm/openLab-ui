@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/app_theme.dart';
 import '../../../core/widgets/isometric_icon.dart';
+import '../../../core/widgets/premium_gate.dart';
 import '../../report/models/parameter_model.dart';
+import '../../subscription/models/subscription_plan.dart';
+import '../../subscription/providers/subscription_provider.dart';
 
-class SmartAdviceSection extends StatelessWidget {
+class SmartAdviceSection extends ConsumerWidget {
   final List<ParameterModel> parameters;
 
   const SmartAdviceSection({super.key, required this.parameters});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final adviceParams = parameters
         .where((p) =>
             (p.trafficLight == 'red' || p.trafficLight == 'yellow') &&
@@ -18,6 +22,11 @@ class SmartAdviceSection extends StatelessWidget {
         .toList();
 
     if (adviceParams.isEmpty) return const SizedBox.shrink();
+
+    final activePlan = ref.watch(activePlanProvider);
+    final isFree = activePlan == PlanTier.free;
+    final visibleCount = isFree ? 1 : 3;
+    final hiddenCount = adviceParams.length - visibleCount;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -31,12 +40,36 @@ class SmartAdviceSection extends StatelessWidget {
               'Smart Insights',
               style: Theme.of(context).textTheme.titleMedium,
             ),
+            if (isFree) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'Limited',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
         const SizedBox(height: 12),
         ...adviceParams
-            .take(3)
+            .take(visibleCount)
             .map((param) => _AdviceCard(parameter: param)),
+        if (isFree && hiddenCount > 0)
+          UpgradeTeaser(
+            message:
+                '$hiddenCount more insight${hiddenCount > 1 ? 's' : ''} available with Plus',
+          ),
       ],
     );
   }

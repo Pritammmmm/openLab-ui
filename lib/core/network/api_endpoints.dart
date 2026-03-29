@@ -26,4 +26,8 @@ class ApiEndpoints {
 
   // Trends
   static String trends(String profileId) => '/reports/profile/$profileId/trends';
+
+  // Subscription
+  static const String subscriptionSync = '/subscription/sync';
+  static const String subscriptionStatus = '/subscription/status';
 }

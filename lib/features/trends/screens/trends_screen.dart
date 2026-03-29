@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/app_theme.dart';
 import '../../../core/widgets/app_error_widget.dart';
 import '../../../core/widgets/app_loading.dart';
+import '../../../core/widgets/premium_gate.dart';
 import '../../home/providers/home_provider.dart';
 import '../../home/widgets/profile_switcher.dart';
+import '../../subscription/models/subscription_plan.dart';
+import '../../subscription/providers/subscription_provider.dart';
 import '../providers/trends_provider.dart';
 import '../widgets/trend_chart.dart';
 
@@ -36,6 +39,8 @@ class TrendsScreen extends ConsumerWidget {
     final profilesAsync = ref.watch(profilesProvider);
     final selectedProfile = ref.watch(selectedProfileProvider);
     final selectedCategory = ref.watch(selectedTrendCategoryProvider);
+    final activePlan = ref.watch(activePlanProvider);
+    final isFree = activePlan == PlanTier.free;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -58,41 +63,56 @@ class TrendsScreen extends ConsumerWidget {
           // Category filter chips
           SizedBox(
             height: 48,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _categories.length,
-              itemBuilder: (context, index) {
-                final cat = _categories[index];
-                final isSelected = selectedCategory == cat;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(_categoryLabels[index]),
-                    selected: isSelected,
-                    onSelected: (_) {
-                      ref.read(selectedTrendCategoryProvider.notifier).state =
-                          cat;
-                    },
-                    selectedColor: AppColors.primary.withValues(alpha: 0.15),
-                    labelStyle: TextStyle(
-                      color:
-                          isSelected ? AppColors.primary : AppColors.textSecondary,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w400,
-                    ),
-                  ),
-                );
-              },
+            child: IgnorePointer(
+              ignoring: isFree,
+              child: Opacity(
+                opacity: isFree ? 0.4 : 1.0,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _categories.length,
+                  itemBuilder: (context, index) {
+                    final cat = _categories[index];
+                    final isSelected = selectedCategory == cat;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(_categoryLabels[index]),
+                        selected: isSelected,
+                        onSelected: (_) {
+                          ref.read(selectedTrendCategoryProvider.notifier).state =
+                              cat;
+                        },
+                        selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                        labelStyle: TextStyle(
+                          color:
+                              isSelected ? AppColors.primary : AppColors.textSecondary,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 8),
 
-          // Chart content
+          // Chart content — gated for free users
           Expanded(
-            child: selectedProfile == null
-                ? const Center(child: Text('Select a profile'))
-                : _TrendsContent(profileId: selectedProfile.id),
+            child: isFree
+                ? SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: PremiumGate(
+                      requiredPlan: PlanTier.plus,
+                      featureName: 'Parameter Trends',
+                      child: const SizedBox.shrink(),
+                    ),
+                  )
+                : selectedProfile == null
+                    ? const Center(child: Text('Select a profile'))
+                    : _TrendsContent(profileId: selectedProfile.id),
           ),
         ],
       ),

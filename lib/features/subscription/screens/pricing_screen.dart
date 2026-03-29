@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import '../../../core/config/app_theme.dart';
+import '../../../core/providers/core_providers.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/subscription_plan.dart';
 import '../providers/subscription_provider.dart';
 
@@ -120,9 +122,12 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
 
     setState(() => _isPurchasing = true);
     try {
-      final success = await purchasePackage(pkg);
+      final dioClient = ref.read(dioClientProvider);
+      final success = await purchasePackage(pkg, dioClient: dioClient);
       if (!mounted) return;
       if (success) {
+        // Refresh auth state to pick up updated plan from backend
+        ref.read(authNotifierProvider.notifier).checkAuthStatus();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Welcome to ${plan.name}!'),
@@ -148,6 +153,8 @@ class _PricingScreenState extends ConsumerState<PricingScreen> {
     setState(() => _isPurchasing = true);
     try {
       await restorePurchases();
+      // Sync restored purchases with backend
+      await syncSubscriptionWithBackend(ref.read(dioClientProvider));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Purchases restored successfully.')),
