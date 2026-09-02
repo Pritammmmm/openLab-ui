@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class SecureStorage {
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
+  static const _onboardingPrefix = 'onboarding_done_';
 
   final FlutterSecureStorage _storage;
 
@@ -44,5 +45,34 @@ class SecureStorage {
   Future<bool> hasTokens() async {
     final token = await _storage.read(key: _accessTokenKey);
     return token != null && token.isNotEmpty;
+  }
+
+  Future<bool> hasCompletedOnboarding(String userId) async {
+    final val = await _storage.read(key: '$_onboardingPrefix$userId');
+    return val == 'true';
+  }
+
+  Future<void> markOnboardingComplete(String userId) async {
+    await _storage.write(key: '$_onboardingPrefix$userId', value: 'true');
+  }
+
+  Future<void> clearOnboarding(String userId) async {
+    await _storage.delete(key: '$_onboardingPrefix$userId');
+  }
+
+  // ── Cached user JSON (avoid API call on app resume) ──
+
+  static const _cachedUserKey = 'cached_user';
+
+  Future<void> cacheUser(String userJson) async {
+    await _storage.write(key: _cachedUserKey, value: userJson);
+  }
+
+  Future<String?> getCachedUser() async {
+    return _storage.read(key: _cachedUserKey);
+  }
+
+  Future<void> clearCachedUser() async {
+    await _storage.delete(key: _cachedUserKey);
   }
 }

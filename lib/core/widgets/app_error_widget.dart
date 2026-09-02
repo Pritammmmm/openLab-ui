@@ -13,6 +13,11 @@ class AppErrorWidget extends StatelessWidget {
     this.icon = Icons.error_outline_rounded,
   });
 
+  bool get _isNoInternet =>
+      message.toLowerCase().contains('no internet') ||
+      message.toLowerCase().contains('no connection') ||
+      message.toLowerCase().contains('check your network');
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -21,19 +26,52 @@ class AppErrorWidget extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 56,
-              color: AppColors.textMuted,
-            ),
+            if (_isNoInternet)
+              Image.asset(
+                'assets/images/No Wi-Fi connection available.png',
+                width: 180,
+                height: 180,
+                fit: BoxFit.contain,
+              )
+            else
+              Icon(
+                icon,
+                size: 56,
+                color: AppColors.textMuted,
+              ),
             const SizedBox(height: 16),
             Text(
-              message,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppColors.textSecondary,
+              _isNoInternet
+                  ? 'No Internet Connection'
+                  : message,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
                   ),
               textAlign: TextAlign.center,
             ),
+            if (_isNoInternet) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Please check your network and try again',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textMuted,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+            ] else
+              ...[],
+            if (!_isNoInternet)
+              ...[
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             if (onRetry != null) ...[
               const SizedBox(height: 24),
               SizedBox(

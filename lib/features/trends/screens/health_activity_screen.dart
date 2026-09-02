@@ -20,9 +20,27 @@ class HealthActivityScreen extends ConsumerWidget {
       );
     }
 
-    final historyState =
-        ref.watch(historyNotifierProvider(selectedProfile.id));
-    final cells = buildMonthlyGrid(historyState.reports);
+    final profileId = selectedProfile.id;
+    final historyState = ref.watch(historyNotifierProvider(profileId));
+
+    // Compute current-month score from full report parameters (authoritative)
+    final fullReport =
+        ref.watch(latestFullReportProvider(profileId)).valueOrNull;
+    int? currentMonthScore;
+    if (fullReport != null) {
+      final g = fullReport.parameters.where((p) => p.trafficLight == 'green').length;
+      final y = fullReport.parameters.where((p) => p.trafficLight == 'yellow').length;
+      final r = fullReport.parameters.where((p) => p.trafficLight == 'red').length;
+      final total = g + y + r;
+      if (total > 0) {
+        currentMonthScore = ((g * 100 + y * 20) / total).round();
+      }
+    }
+
+    final cells = buildMonthlyGrid(
+      historyState.reports,
+      currentMonthScore: currentMonthScore,
+    );
     final activeDays =
         cells.where((c) => c.level != HeatmapLevel.empty).length;
 

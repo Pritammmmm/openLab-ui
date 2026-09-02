@@ -55,21 +55,17 @@ final availableParametersProvider =
 final selectedDetailParameterProvider = StateProvider<String?>((ref) => null);
 
 /// Fetches trend data for the sparkline preview.
-/// Tries the most critical parameter first, then falls back to others
-/// to find one with at least 2 data points for a meaningful sparkline.
+/// Tries the most critical parameter first, then falls back to others.
+/// If the API returns nothing, builds a single-point preview from the
+/// latest report so the card always shows something when reports exist.
 final trendPreviewProvider =
     FutureProvider.family<TrendParameter?, String>((ref, profileId) async {
-  // Trends require plus plan or higher — skip API calls for free users
-  final plan = ref.watch(activePlanProvider);
-  if (plan == PlanTier.free) return null;
-
   final allParams = ref.watch(availableParametersProvider(profileId));
   if (allParams.isEmpty) return null;
 
   final critical = ref.watch(mostCriticalParameterProvider(profileId));
   final repo = ref.watch(trendsRepositoryProvider);
 
-  // Build ordered list: most critical first, then the rest
   final paramsToTry = <String>[
     if (critical != null) critical.name,
     ...allParams
@@ -77,16 +73,30 @@ final trendPreviewProvider =
         .map((p) => p.name),
   ];
 
-  // Try each parameter until we find one with >= 2 data points
   for (final name in paramsToTry) {
     try {
       final result = await repo.getTrends(profileId, parameterName: name);
-      if (result.isNotEmpty && result.first.dataPoints.length >= 2) {
+      if (result.isNotEmpty && result.first.dataPoints.isNotEmpty) {
         return result.first;
       }
     } catch (_) {}
   }
-  return null;
+
+  // Fallback: build a single data point from the latest report
+  final param = critical ?? allParams.first;
+  return TrendParameter(
+    name: param.name,
+    unit: param.unit,
+    refMin: param.refRange?.min,
+    refMax: param.refRange?.max,
+    dataPoints: [
+      TrendDataPoint(
+        date: DateTime.now(),
+        value: param.value,
+        status: param.trafficLight,
+      ),
+    ],
+  );
 });
 
 /// Fetches trend data for the detail screen's selected parameter.

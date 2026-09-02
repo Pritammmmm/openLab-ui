@@ -41,11 +41,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     ref.listen<AuthState>(authNotifierProvider, (prev, next) {
       if (next.status == AuthStatus.authenticated) {
-        if (next.isNewUser) {
-          context.go('/welcome');
-        } else {
-          context.go('/');
-        }
+        context.go('/');
       }
       if (next.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(

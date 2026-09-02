@@ -15,6 +15,7 @@ class HistoryRepository {
       profileId,
       page: page,
       limit: limit,
+      status: 'completed',
     );
     if (response.success && response.data != null) {
       return response.data!;

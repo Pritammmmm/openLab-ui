@@ -28,6 +28,18 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     super.initState();
     final user = ref.read(currentUserProvider);
     _nameController = TextEditingController(text: user?.name ?? '');
+    _checkExistingProfiles();
+  }
+
+  Future<void> _checkExistingProfiles() async {
+    try {
+      final profiles = await ref.read(manageProfilesProvider.future);
+      if (profiles.isNotEmpty && mounted) {
+        context.go('/');
+      }
+    } catch (_) {
+      // If fetch fails, let the user fill in the form normally
+    }
   }
 
   @override

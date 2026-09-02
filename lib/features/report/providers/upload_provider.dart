@@ -71,9 +71,12 @@ class UploadNotifier extends StateNotifier<UploadState> {
         reportId: reportId,
       );
     } catch (e) {
+      final message = e is Exception
+          ? e.toString().replaceFirst('Exception: ', '')
+          : 'Something went wrong. Please try again.';
       state = UploadState(
         status: UploadStatus.failed,
-        error: e.toString(),
+        error: message,
       );
     }
   }

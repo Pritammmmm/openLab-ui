@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/app_theme.dart';
 import '../../../core/widgets/app_error_widget.dart';
-import '../../../core/widgets/app_loading.dart';
+import '../../../core/widgets/skeleton_loaders.dart';
 import '../../../core/widgets/premium_gate.dart';
 import '../../home/providers/home_provider.dart';
 import '../../home/widgets/profile_switcher.dart';
@@ -57,7 +57,7 @@ class TrendsScreen extends ConsumerWidget {
               },
             ),
             loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
           ),
 
           // Category filter chips
@@ -206,7 +206,7 @@ class _TrendsContent extends ConsumerWidget {
           },
         );
       },
-      loading: () => const AppLoading(message: 'Loading trends...'),
+      loading: () => const TrendsScreenSkeleton(),
       error: (e, _) => AppErrorWidget(
         message: 'Failed to load trends',
         onRetry: () => ref.invalidate(trendsDataProvider(profileId)),

@@ -12,6 +12,8 @@ import '../../home/providers/home_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../subscription/models/subscription_plan.dart';
 import '../../subscription/providers/subscription_provider.dart';
+import '../../../core/utils/helpers.dart';
+import '../../profile/models/profile_model.dart';
 import '../providers/upload_provider.dart';
 
 class UploadScreen extends ConsumerStatefulWidget {
@@ -25,13 +27,23 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   File? _selectedFile;
   String? _fileName;
   bool _isImage = false;
+  ProfileModel? _uploadProfile;
 
   @override
   void initState() {
     super.initState();
     Future((){
       ref.read(uploadNotifierProvider.notifier).reset();
+      _initUploadProfile();
     });
+  }
+
+  void _initUploadProfile() {
+    if (_uploadProfile != null) return;
+    final global = ref.read(selectedProfileProvider);
+    if (global != null && mounted) {
+      setState(() => _uploadProfile = global);
+    }
   }
 
   Future<void> _pickFromCamera() async {
@@ -114,20 +126,25 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
   Future<void> _upload() async {
     if (_selectedFile == null) return;
-
-    final profile = ref.read(selectedProfileProvider);
-    if (profile == null) return;
+    if (_uploadProfile == null) return;
 
     await ref.read(uploadNotifierProvider.notifier).upload(
           file: _selectedFile!,
-          profileId: profile.id,
+          profileId: _uploadProfile!.id,
         );
   }
 
   @override
   Widget build(BuildContext context) {
     final uploadState = ref.watch(uploadNotifierProvider);
-    final selectedProfile = ref.watch(selectedProfileProvider);
+
+    // Initialize local upload profile from the global selection on first build
+    if (_uploadProfile == null) {
+      final global = ref.read(selectedProfileProvider);
+      if (global != null) {
+        _uploadProfile = global;
+      }
+    }
 
     ref.listen<UploadState>(uploadNotifierProvider, (prev, next) {
       if (next.status == UploadStatus.processing && next.reportId != null) {
@@ -149,7 +166,13 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         title: const Text('Upload Report'),
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/');
+              }
+            },
         ),
       ),
       body: SingleChildScrollView(
@@ -164,12 +187,45 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Take a photo or pick a PDF of your blood test report',
+                'Take a photo or pick a PDF of your blood test report '
+                'from a laboratory or healthcare provider.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSecondary,
                     ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.science_outlined,
+                      size: 20,
+                      color: AppColors.primary.withValues(alpha: 0.7),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'This app does not perform blood tests. You need a '
+                        'blood test report from a certified lab or clinic.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
               _UploadLimitBanner(),
               const SizedBox(height: 16),
               _UploadOption(
@@ -252,63 +308,12 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Profile confirmation reminder
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.yellowBg,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: AppColors.yellow.withValues(alpha: 0.25),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: AppColors.yellow.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.person_pin_rounded,
-                        size: 20,
-                        color: AppColors.yellow,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Are you sure this report is for',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                              height: 1.3,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            selectedProfile?.name ?? 'Unknown',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(
-                      Icons.check_circle_rounded,
-                      size: 22,
-                      color: AppColors.yellow,
-                    ),
-                  ],
-                ),
+              // Profile selector
+              _ProfileSelector(
+                selectedProfile: _uploadProfile,
+                onSwitch: (profile) {
+                  setState(() => _uploadProfile = profile);
+                },
               ),
               const SizedBox(height: 32),
 
@@ -456,6 +461,359 @@ class _UploadLimitBanner extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Profile Selector — dropdown-style profile picker for upload target
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ProfileSelector extends ConsumerWidget {
+  final ProfileModel? selectedProfile;
+  final ValueChanged<ProfileModel> onSwitch;
+
+  const _ProfileSelector({
+    required this.selectedProfile,
+    required this.onSwitch,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profilesAsync = ref.watch(profilesProvider);
+    final profiles = profilesAsync.valueOrNull ?? [];
+    final hasMultiple = profiles.length > 1;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Label
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'This report belongs to',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1C1C1E),
+            ),
+          ),
+        ),
+
+        // Dropdown-style card
+        GestureDetector(
+          onTap: hasMultiple
+              ? () => _showProfilePicker(context, profiles)
+              : null,
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: hasMultiple
+                    ? AppColors.primary.withValues(alpha: 0.2)
+                    : Colors.black.withValues(alpha: 0.06),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Avatar
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF7B52F5),
+                        Color(0xFF5F33E1),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    selectedProfile?.initials ?? '?',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+
+                // Name + relation
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        selectedProfile?.name ?? 'Unknown',
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1C1C1E),
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        selectedProfile?.relation.capitalize() ?? 'Self',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF8E8E93),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Dropdown chevron or single-profile check
+                if (hasMultiple)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Change',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        SizedBox(width: 2),
+                        Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: const BoxDecoration(
+                      color: AppColors.green,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_rounded,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showProfilePicker(
+      BuildContext context, List<ProfileModel> profiles) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF2F2F7),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(0, 10, 0, 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag handle
+                Container(
+                  width: 36,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD1D1D6),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Who is this report for?',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1C1C1E),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Profile list
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        for (int i = 0; i < profiles.length; i++) ...[
+                          _ProfilePickerRow(
+                            profile: profiles[i],
+                            isSelected:
+                                profiles[i].id == selectedProfile?.id,
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              onSwitch(profiles[i]);
+                            },
+                          ),
+                          if (i < profiles.length - 1)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 62),
+                              child: Container(
+                                height: 0.5,
+                                color: const Color(0xFFE5E5EA),
+                              ),
+                            ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfilePickerRow extends StatelessWidget {
+  final ProfileModel profile;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ProfilePickerRow({
+    required this.profile,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        color: isSelected
+            ? AppColors.primary.withValues(alpha: 0.04)
+            : Colors.transparent,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                gradient: isSelected
+                    ? const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF7B52F5), Color(0xFF5F33E1)],
+                      )
+                    : LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.primary.withValues(alpha: 0.12),
+                          AppColors.primary.withValues(alpha: 0.06),
+                        ],
+                      ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                profile.initials,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? Colors.white : AppColors.primary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    profile.name,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: const Color(0xFF1C1C1E),
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    '${profile.relation.capitalize()} · ${profile.reportCount} reports',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF8E8E93),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Container(
+                width: 24,
+                height: 24,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  size: 14,
+                  color: Colors.white,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

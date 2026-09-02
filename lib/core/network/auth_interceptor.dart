@@ -72,6 +72,8 @@ class AuthInterceptor extends Interceptor {
 
     _isRefreshing = true;
 
+    // ── Step 1: Refresh the token ──
+    String newAccessToken;
     try {
       final refreshToken = await _storage.getRefreshToken();
       if (refreshToken == null || refreshToken.isEmpty) {
@@ -84,40 +86,19 @@ class AuthInterceptor extends Interceptor {
         options: Options(headers: {'Content-Type': 'application/json'}),
       );
 
-      final newAccessToken = response.data['data']?['accessToken'] as String?;
-      final newRefreshToken = response.data['data']?['refreshToken'] as String?;
+      final accessToken = response.data['data']?['accessToken'] as String?;
+      final newRefreshToken =
+          response.data['data']?['refreshToken'] as String?;
 
-      if (newAccessToken == null) {
+      if (accessToken == null) {
         throw Exception('No access token in refresh response');
       }
 
+      newAccessToken = accessToken;
       await _storage.saveTokens(
         accessToken: newAccessToken,
         refreshToken: newRefreshToken ?? refreshToken,
       );
-
-      // Retry original request
-      final retryResponse = await _dio.fetch(
-        err.requestOptions..headers['Authorization'] = 'Bearer $newAccessToken',
-      );
-
-      // Retry pending requests
-      for (final pending in _pendingRequests) {
-        try {
-          final r = await _dio.fetch(
-            pending.requestOptions
-              ..headers['Authorization'] = 'Bearer $newAccessToken',
-          );
-          pending.completer.complete(r);
-        } catch (e) {
-          pending.completer.completeError(e);
-        }
-      }
-
-      _pendingRequests.clear();
-      _isRefreshing = false;
-
-      return handler.resolve(retryResponse);
     } catch (e) {
       debugPrint('Token refresh failed: $e');
       _pendingRequests.clear();
@@ -127,6 +108,51 @@ class AuthInterceptor extends Interceptor {
       _onSessionExpired();
       return handler.next(err);
     }
+
+    // ── Step 2: Retry queued requests (refresh succeeded) ──
+    // Failures here must NOT expire the session — the tokens are valid.
+    for (final pending in _pendingRequests) {
+      try {
+        final r = await _retryRequest(pending.requestOptions, newAccessToken);
+        pending.completer.complete(r);
+      } catch (e) {
+        pending.completer.completeError(e);
+      }
+    }
+    _pendingRequests.clear();
+    _isRefreshing = false;
+
+    // Retry the original request
+    try {
+      final retryResponse =
+          await _retryRequest(err.requestOptions, newAccessToken);
+      return handler.resolve(retryResponse);
+    } catch (e) {
+      debugPrint('Retry after refresh failed (token is still valid): $e');
+      return handler.next(err);
+    }
+  }
+
+  /// Retry a request with a new access token.
+  /// FormData is single-use (stream-based), so requests that carried FormData
+  /// cannot be transparently retried — throw so callers surface the original
+  /// error instead of crashing with "FormData already finalized".
+  Future<Response> _retryRequest(
+    RequestOptions options,
+    String accessToken,
+  ) {
+    if (options.data is FormData) {
+      return Future.error(
+        DioException(
+          requestOptions: options,
+          message:
+              'Cannot retry a FormData request after token refresh. '
+              'Please retry the upload.',
+        ),
+      );
+    }
+    options.headers['Authorization'] = 'Bearer $accessToken';
+    return _dio.fetch(options);
   }
 }
 

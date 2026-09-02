@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/config/app_theme.dart';
+import '../../../core/widgets/medical_disclaimer.dart';
+import '../providers/auth_provider.dart';
 
-class WelcomeScreen extends StatefulWidget {
+class WelcomeScreen extends ConsumerStatefulWidget {
   const WelcomeScreen({super.key});
 
   @override
-  State<WelcomeScreen> createState() => _WelcomeScreenState();
+  ConsumerState<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> {
+class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   final _controller = PageController();
   int _currentPage = 0;
 
@@ -20,13 +23,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       titleThin: 'Score',
       subtitle: 'AI-Powered Blood Analysis',
       description:
-          'Upload your blood report and get an instant health score '
-          'powered by AI. Understand what every parameter means with '
-          'clear, simple insights — no medical jargon.',
+          'Upload your blood test report from any lab or clinic and '
+          'get an instant health score powered by AI. Understand what '
+          'every parameter means with clear, simple insights — no '
+          'medical jargon.',
       features: [
+        'Requires a blood test report from a lab or clinic',
         'Instant AI analysis of 50+ blood parameters',
         'Traffic-light indicators: Green, Yellow, Red',
-        'Personalised health advice for each result',
       ],
     ),
     _PageData(
@@ -91,7 +95,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               child: Padding(
                 padding: const EdgeInsets.only(top: 12, right: 20),
                 child: TextButton(
-                  onPressed: () => context.go('/profile-setup'),
+                  onPressed: () {
+                    ref.read(authNotifierProvider.notifier).completeOnboarding();
+                    context.go('/');
+                  },
                   child: Text(
                     isLastPage ? '' : 'Skip',
                     style: const TextStyle(
@@ -147,7 +154,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 height: 56,
                 child: isLastPage
                     ? _ClaimOfferButton(
-                        onTap: () => context.push('/pricing'),
+                        onTap: () {
+                          ref.read(authNotifierProvider.notifier).completeOnboarding();
+                          context.push('/pricing');
+                        },
                       )
                     : ElevatedButton(
                         onPressed: _next,
@@ -177,12 +187,21 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ),
             ),
 
+            // Medical disclaimer
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: MedicalDisclaimer(compact: true),
+            ),
+
             // "Continue without plan" on last page
             if (isLastPage)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: TextButton(
-                  onPressed: () => context.go('/profile-setup'),
+                  onPressed: () {
+                    ref.read(authNotifierProvider.notifier).completeOnboarding();
+                    context.go('/');
+                  },
                   child: const Text(
                     'Continue with Free plan',
                     style: TextStyle(
@@ -241,7 +260,7 @@ class _WelcomePage extends StatelessWidget {
 
           // Claymorphic image card
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(32),
@@ -262,13 +281,13 @@ class _WelcomePage extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               child: Image.asset(
                 data.image,
-                height: 200,
+                height: 160,
                 fit: BoxFit.contain,
               ),
             ),
           ),
 
-          const SizedBox(height: 36),
+          const SizedBox(height: 24),
 
           // Title — Bold + Thin Inter
           Row(
@@ -277,7 +296,7 @@ class _WelcomePage extends StatelessWidget {
               Text(
                 data.titleBold,
                 style: const TextStyle(
-                  fontSize: 34,
+                  fontSize: 30,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
                   letterSpacing: -0.5,
@@ -287,7 +306,7 @@ class _WelcomePage extends StatelessWidget {
               Text(
                 data.titleThin,
                 style: const TextStyle(
-                  fontSize: 34,
+                  fontSize: 30,
                   fontWeight: FontWeight.w200,
                   color: AppColors.primary,
                   letterSpacing: -0.5,
@@ -296,65 +315,65 @@ class _WelcomePage extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
 
           // Subtitle
           Text(
             data.subtitle,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
               color: AppColors.textMuted,
               letterSpacing: 0.5,
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
 
           // Description
           Text(
             data.description,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w400,
               color: AppColors.textSecondary,
-              height: 1.6,
+              height: 1.5,
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
 
           // Feature list
           ...data.features.map((f) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   children: [
                     Container(
-                      width: 24,
-                      height: 24,
+                      width: 22,
+                      height: 22,
                       decoration: BoxDecoration(
                         color: data.isPremiumPage
                             ? AppColors.primary.withValues(alpha: 0.10)
                             : AppColors.green.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(7),
                       ),
                       child: Icon(
                         data.isPremiumPage
                             ? Icons.star_rounded
                             : Icons.check_rounded,
-                        size: 14,
+                        size: 13,
                         color: data.isPremiumPage
                             ? AppColors.primary
                             : AppColors.green,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         f,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w500,
                           color: AppColors.textPrimary,
                           height: 1.4,

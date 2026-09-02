@@ -19,6 +19,20 @@ import '../../features/trends/screens/parameter_trend_screen.dart';
 import '../../features/subscription/screens/pricing_screen.dart';
 import '../../features/settings/screens/support_screen.dart';
 import '../../features/settings/screens/privacy_policy_screen.dart';
+import '../../features/medicine/screens/medicine_screen.dart';
+import '../../features/health/screens/health_dashboard_screen.dart';
+import '../../features/health/screens/health_goals_screen.dart';
+import '../../features/health/screens/health_food_tracker_screen.dart';
+import '../../features/health/screens/health_water_tracker_screen.dart';
+import '../../features/health/screens/health_steps_tracker_screen.dart';
+import '../../features/health/screens/blood_sugar_screen.dart';
+import '../../features/health/screens/blood_pressure_screen.dart';
+import '../../features/health/screens/weight_screen.dart';
+import '../../features/health/screens/health_sync_settings_screen.dart';
+import '../../features/health/screens/health_vitals_screen.dart';
+import '../../features/health/screens/health_records_screen.dart';
+import '../../features/health/screens/stand_reminder_screen.dart';
+import '../../features/onboarding/screens/onboarding_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -27,7 +41,7 @@ final _shellNavigatorKey = GlobalKey<NavigatorState>();
 /// so the router can re-evaluate redirects without being recreated.
 class _AuthNotifierListenable extends ChangeNotifier {
   _AuthNotifierListenable(this._ref) {
-    _ref.listen<AuthState>(authNotifierProvider, (_, __) {
+    _ref.listen<AuthState>(authNotifierProvider, (_, _) {
       notifyListeners();
     });
   }
@@ -48,7 +62,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoading = authState.status == AuthStatus.loading ||
           authState.status == AuthStatus.initial;
       final path = state.matchedLocation;
-      final isPublicRoute = path == '/login' || path == '/privacy' || path == '/welcome';
+      final isPublicRoute = path == '/login' || path == '/privacy' || path == '/welcome' || path == '/onboarding';
 
       if (isLoading) {
         return isPublicRoute ? null : '/login';
@@ -59,7 +73,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (isAuthenticated && path == '/login') {
-        return '/';
+        return authState.isNewUser ? '/welcome' : '/';
+      }
+
+      // Redirect to welcome if onboarding not completed (e.g. app relaunch)
+      if (isAuthenticated &&
+          authState.isNewUser &&
+          !isPublicRoute &&
+          path != '/pricing') {
+        return '/welcome';
       }
 
       return null;
@@ -72,6 +94,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/welcome',
         builder: (context, state) => const WelcomeScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
       ),
       GoRoute(
         path: '/profile-setup',
@@ -131,6 +157,66 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const TrendsScreen(),
       ),
+      GoRoute(
+        path: '/medicine',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const MedicineScreen(),
+      ),
+      GoRoute(
+        path: '/health/goals',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const HealthGoalsScreen(),
+      ),
+      GoRoute(
+        path: '/health/food',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const HealthFoodTrackerScreen(),
+      ),
+      GoRoute(
+        path: '/health/water',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const HealthWaterTrackerScreen(),
+      ),
+      GoRoute(
+        path: '/health/steps',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const HealthStepsTrackerScreen(),
+      ),
+      GoRoute(
+        path: '/health/blood-sugar',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const BloodSugarScreen(),
+      ),
+      GoRoute(
+        path: '/health/blood-pressure',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const BloodPressureScreen(),
+      ),
+      GoRoute(
+        path: '/health/weight',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const WeightScreen(),
+      ),
+      GoRoute(
+        path: '/health/sync-settings',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const HealthSyncSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/health/vitals',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const HealthVitalsScreen(),
+      ),
+      GoRoute(
+        path: '/health/records',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const HealthRecordsScreen(),
+      ),
+      GoRoute(
+        path: '/health/stand-reminder',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const StandReminderScreen(),
+      ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
         builder: (context, state, child) => ScaffoldWithNav(child: child),
@@ -142,6 +228,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/history',
             builder: (context, state) => const HistoryScreen(),
+          ),
+          GoRoute(
+            path: '/health',
+            builder: (context, state) => const HealthDashboardScreen(),
           ),
         ],
       ),
@@ -164,6 +254,7 @@ class ScaffoldWithNav extends StatelessWidget {
     final location = GoRouterState.of(context).matchedLocation;
     if (location == '/') return 0;
     if (location.startsWith('/history')) return 1;
+    if (location.startsWith('/health')) return 2;
     return 0;
   }
 
@@ -174,6 +265,7 @@ class ScaffoldWithNav extends StatelessWidget {
     return Scaffold(
       key: scaffoldKey,
       extendBody: true,
+      resizeToAvoidBottomInset: false,
       drawer: const SettingsDrawer(),
       body: Stack(
         children: [
@@ -200,6 +292,8 @@ class ScaffoldWithNav extends StatelessWidget {
                       context.go('/');
                     case 1:
                       context.go('/history');
+                    case 2:
+                      context.go('/health');
                   }
                 },
                 onUploadTap: () => context.push('/upload'),
@@ -218,7 +312,6 @@ class ScaffoldWithNav extends StatelessWidget {
 
 const _pillBg = Color(0xF2F5F5F7);
 const _accentPurple = Color(0xFF7C5CBF);
-const _accentDark = Color(0xFF5A3E9E);
 const _inactiveGrey = Color(0xFF8E8E93);
 const _activeText = Color(0xFF1D1D1F);
 
@@ -239,6 +332,7 @@ class FloatingNavBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Main pill segment
           Container(
@@ -248,18 +342,24 @@ class FloatingNavBar extends StatelessWidget {
               color: _pillBg,
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
-                color: Colors.black.withValues(alpha: 0.06),
+                color: Colors.white.withValues(alpha: 0.5),
+                width: 1.2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 36,
+                  offset: const Offset(0, 12),
                 ),
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withValues(alpha: 0.10),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
                 ),
               ],
             ),
@@ -280,6 +380,13 @@ class FloatingNavBar extends StatelessWidget {
                       label: 'History',
                       isActive: currentIndex == 1,
                       onTap: () => onTabChanged(1),
+                    ),
+                    const SizedBox(width: 4),
+                    _NavTabItem(
+                      icon: Icons.favorite_rounded,
+                      label: 'Health',
+                      isActive: currentIndex == 2,
+                      onTap: () => onTabChanged(2),
                     ),
                   ],
                 );
@@ -443,42 +550,59 @@ class _IsometricUploadButton extends StatefulWidget {
 }
 
 class _IsometricUploadButtonState extends State<_IsometricUploadButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+    with TickerProviderStateMixin {
+  late AnimationController _tapController;
   late Animation<double> _scaleAnim;
+  late AnimationController _shineController;
   bool _showGlow = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _tapController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
     _scaleAnim = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _tapController, curve: Curves.easeInOut),
     );
+
+    // Glass shine animation — sweeps every 2 seconds
+    _shineController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _startShineLoop();
+  }
+
+  void _startShineLoop() async {
+    while (mounted) {
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      await _shineController.forward(from: 0);
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _tapController.dispose();
+    _shineController.dispose();
     super.dispose();
   }
 
   void _onTapDown(TapDownDetails _) {
-    _controller.forward();
+    _tapController.forward();
     setState(() => _showGlow = true);
   }
 
   void _onTapUp(TapUpDetails _) {
-    _controller.reverse();
+    _tapController.reverse();
     setState(() => _showGlow = false);
     widget.onTap();
   }
 
   void _onTapCancel() {
-    _controller.reverse();
+    _tapController.reverse();
     setState(() => _showGlow = false);
   }
 
@@ -494,40 +618,105 @@ class _IsometricUploadButtonState extends State<_IsometricUploadButton>
           scale: _scaleAnim.value,
           child: child,
         ),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: _pillBg,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
+        child: Transform.translate(
+          offset: const Offset(0, 0),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F7FA),
+                  Color(0xFFEDEDF2),
+                ],
               ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.6),
+                width: 1.5,
               ),
-              if (_showGlow)
+              boxShadow: [
                 BoxShadow(
-                  color: _accentPurple.withValues(alpha: 0.25),
-                  blurRadius: 16,
-                  spreadRadius: 1,
+                  color: Colors.black.withValues(alpha: 0.20),
+                  blurRadius: 36,
+                  offset: const Offset(0, 12),
                 ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: SvgPicture.asset(
-              'assets/images/ai-hospital.svg',
-              fit: BoxFit.contain,
-              colorFilter: const ColorFilter.mode(
-                _activeText,
-                BlendMode.srcIn,
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.10),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+                BoxShadow(
+                  color: _accentPurple.withValues(alpha: 0.15),
+                  blurRadius: 24,
+                  spreadRadius: 2,
+                ),
+                if (_showGlow)
+                  BoxShadow(
+                    color: _accentPurple.withValues(alpha: 0.35),
+                    blurRadius: 24,
+                    spreadRadius: 4,
+                  ),
+              ],
+            ),
+            child: ClipOval(
+              child: Stack(
+                children: [
+                  // Icon
+                  Center(
+                    child: SvgPicture.asset(
+                      'assets/images/ai-hospital.svg',
+                      width: 30,
+                      height: 30,
+                      fit: BoxFit.contain,
+                      colorFilter: const ColorFilter.mode(
+                        _activeText,
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                  ),
+                  // Glass shine sweep
+                  AnimatedBuilder(
+                    animation: _shineController,
+                    builder: (context, _) {
+                      final t = _shineController.value;
+                      return Positioned.fill(
+                        child: Transform.translate(
+                          offset: Offset(
+                            -80 + (t * 160),
+                            0,
+                          ),
+                          child: Transform.rotate(
+                            angle: 0.35,
+                            child: Container(
+                              width: 36,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.0),
+                                    Colors.white.withValues(alpha: 0.15),
+                                    Colors.white.withValues(alpha: 0.7),
+                                    Colors.white.withValues(alpha: 0.15),
+                                    Colors.white.withValues(alpha: 0.0),
+                                  ],
+                                  stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ),
@@ -535,68 +724,4 @@ class _IsometricUploadButtonState extends State<_IsometricUploadButton>
       ),
     );
   }
-}
-
-class _IsometricUploadIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-
-    // Isometric base plane
-    final basePaint = Paint()
-      ..color = _accentDark
-      ..style = PaintingStyle.fill;
-
-    final basePath = Path()
-      ..moveTo(cx, cy + 6)
-      ..lineTo(cx + 10, cy + 2)
-      ..lineTo(cx, cy - 2)
-      ..lineTo(cx - 10, cy + 2)
-      ..close();
-    canvas.drawPath(basePath, basePaint);
-
-    // Isometric base top face (lighter)
-    final topFacePaint = Paint()
-      ..color = _accentPurple.withValues(alpha: 0.5)
-      ..style = PaintingStyle.fill;
-
-    final topFacePath = Path()
-      ..moveTo(cx, cy - 2)
-      ..lineTo(cx + 10, cy + 2)
-      ..lineTo(cx + 10, cy)
-      ..lineTo(cx, cy - 4)
-      ..lineTo(cx - 10, cy)
-      ..lineTo(cx - 10, cy + 2)
-      ..close();
-    canvas.drawPath(topFacePath, topFacePaint);
-
-    // Arrow shaft
-    final arrowPaint = Paint()
-      ..color = _accentPurple
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawLine(
-      Offset(cx, cy - 2),
-      Offset(cx, cy - 14),
-      arrowPaint,
-    );
-
-    // Arrow head
-    final headPaint = Paint()
-      ..color = _accentPurple
-      ..style = PaintingStyle.fill;
-
-    final headPath = Path()
-      ..moveTo(cx, cy - 18)
-      ..lineTo(cx - 5, cy - 11)
-      ..lineTo(cx + 5, cy - 11)
-      ..close();
-    canvas.drawPath(headPath, headPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

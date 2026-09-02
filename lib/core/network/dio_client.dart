@@ -163,8 +163,15 @@ class DioClient {
         switch (statusCode) {
           case 401:
             return const app_exceptions.UnauthorizedException();
+          case 403:
+            return app_exceptions.ForbiddenException(message: message);
           case 404:
             return app_exceptions.NotFoundException(message: message);
+          case 409:
+            return app_exceptions.ApiException(
+              message: message ?? 'This action has already been completed.',
+              statusCode: statusCode,
+            );
           case 422:
             return app_exceptions.ValidationException(
               message: message,
@@ -172,9 +179,14 @@ class DioClient {
                   ? data['errors'] as Map<String, dynamic>?
                   : null,
             );
+          case 429:
+            return app_exceptions.ApiException(
+              message: 'Too many requests. Please wait a moment and try again.',
+              statusCode: statusCode,
+            );
           default:
             return app_exceptions.ApiException(
-              message: message ?? 'Something went wrong',
+              message: message ?? 'Something went wrong. Please try again.',
               statusCode: statusCode,
               data: data,
             );

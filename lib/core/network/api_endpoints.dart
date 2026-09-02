@@ -6,6 +6,7 @@ class ApiEndpoints {
   static const String authRefresh = '/auth/refresh';
   static const String authLogout = '/auth/logout';
   static const String authMe = '/auth/me';
+  static const String authOnboardingComplete = '/auth/onboarding-complete';
 
   // Users
   static const String users = '/users';
@@ -30,4 +31,20 @@ class ApiEndpoints {
   // Subscription
   static const String subscriptionSync = '/subscription/sync';
   static const String subscriptionStatus = '/subscription/status';
+
+  // Health
+  static const String healthMetrics = '/health/metrics';
+  static const String healthMetricsSync = '/health/metrics/sync';
+  static String healthMetricById(String id) => '/health/metrics/$id';
+  static const String healthDailyLogs = '/health/daily-logs';
+  static const String healthDailyLogsSync = '/health/daily-logs/sync';
+  static const String healthFoodEntries = '/health/food-entries';
+  static const String healthFoodEntriesSync = '/health/food-entries/sync';
+  static const String healthGoals = '/health/goals';
+  static String healthGoalById(String id) => '/health/goals/$id';
+  static const String healthInsights = '/health/insights';
+
+  // Food Database
+  static const String foodDbSearch = '/food-db/search';
+  static const String foodDbCategories = '/food-db/categories';
 }

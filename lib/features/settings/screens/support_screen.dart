@@ -90,9 +90,9 @@ class SupportScreen extends StatelessWidget {
               if (await canLaunchUrl(uri)) {
                 await launchUrl(uri);
               } else {
+                await Clipboard.setData(
+                    const ClipboardData(text: _supportEmail));
                 if (context.mounted) {
-                  await Clipboard.setData(
-                      const ClipboardData(text: _supportEmail));
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Email copied to clipboard'),
@@ -122,9 +122,9 @@ class SupportScreen extends StatelessWidget {
               if (await canLaunchUrl(uri)) {
                 await launchUrl(uri);
               } else {
+                await Clipboard.setData(
+                    const ClipboardData(text: _supportEmail));
                 if (context.mounted) {
-                  await Clipboard.setData(
-                      const ClipboardData(text: _supportEmail));
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Email copied to clipboard'),
@@ -154,9 +154,9 @@ class SupportScreen extends StatelessWidget {
               if (await canLaunchUrl(uri)) {
                 await launchUrl(uri);
               } else {
+                await Clipboard.setData(
+                    const ClipboardData(text: _supportEmail));
                 if (context.mounted) {
-                  await Clipboard.setData(
-                      const ClipboardData(text: _supportEmail));
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Email copied to clipboard'),

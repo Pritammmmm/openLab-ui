@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/config/app_theme.dart';
 import '../../../core/utils/helpers.dart';
 import '../../../core/widgets/app_error_widget.dart';
-import '../../../core/widgets/app_loading.dart';
+import '../../../core/widgets/skeleton_loaders.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../report/models/parameter_model.dart';
 import '../../report/models/report_model.dart';
@@ -12,7 +12,6 @@ import '../providers/home_provider.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/health_score_ring.dart';
 import '../widgets/key_parameters_list.dart';
-import '../widgets/quick_stats_row.dart';
 import '../widgets/smart_advice_section.dart';
 import '../../history/providers/history_provider.dart';
 import '../../trends/utils/heatmap_mapper.dart';
@@ -21,10 +20,12 @@ import '../../trends/providers/parameter_trend_provider.dart';
 import '../../trends/widgets/sparkline_preview.dart';
 import '../../../core/config/app_router.dart';
 import '../../../core/widgets/isometric_icon.dart';
+import '../../../core/widgets/medical_disclaimer.dart';
 import '../../profile/models/profile_model.dart' show ProfileModel;
 import '../../profile/providers/profile_provider.dart' show maxProfilesForPlan;
 import '../../subscription/models/subscription_plan.dart';
 import '../../subscription/providers/subscription_provider.dart';
+import '../../../core/widgets/premium_avatar.dart';
 import '../../../core/widgets/premium_gate.dart';
 
 String _timeGreeting() {
@@ -48,7 +49,7 @@ class HomeScreen extends ConsumerWidget {
         child: RefreshIndicator(
           color: AppColors.primary,
           onRefresh: () async {
-            ref.invalidate(profilesProvider);
+            ref.invalidate(allProfilesProvider);
             if (selectedProfile != null) {
               ref.invalidate(latestReportProvider(selectedProfile.id));
               ref.invalidate(latestFullReportProvider(selectedProfile.id));
@@ -68,7 +69,7 @@ class HomeScreen extends ConsumerWidget {
                   hasScrollBody: false,
                   child: profilesAsync.when(
                     data: (_) => const _NoProfileState(),
-                    loading: () => const AppLoading(),
+                    loading: () => const HomeScreenSkeleton(),
                     error: (e, _) => AppErrorWidget(
                       message: 'Failed to load profiles',
                       onRetry: () => ref.invalidate(profilesProvider),
@@ -102,7 +103,7 @@ class _Header extends ConsumerWidget {
     final hasMultipleProfiles = profiles.length > 1;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+      padding: const EdgeInsets.fromLTRB(20, 20, 12, 12),
       child: Row(
         children: [
           GestureDetector(
@@ -152,6 +153,21 @@ class _Header extends ConsumerWidget {
               ],
             ),
           ),
+          _HeaderActionButton(
+            icon: Icons.family_restroom_rounded,
+            tooltip: 'Manage Profiles',
+            iconColor: const Color(0xFF5B6EF5),
+            bgGradient: const [Color(0xFFEEEBFF), Color(0xFFE0DBFF)],
+            onTap: () => GoRouter.of(context).push('/settings/profiles'),
+          ),
+          const SizedBox(width: 8),
+          _HeaderActionButton(
+            icon: Icons.medication_rounded,
+            tooltip: 'Medicine Reminders',
+            iconColor: const Color(0xFFE04B3D),
+            bgGradient: const [Color(0xFFFFEBEB), Color(0xFFFFDDD8)],
+            onTap: () => GoRouter.of(context).push('/medicine'),
+          ),
         ],
       ),
     );
@@ -161,20 +177,11 @@ class _Header extends ConsumerWidget {
     final isSelf = profile == null || profile.relation == 'self';
     final hasPhoto = isSelf && user?.photoUrl != null;
 
-    return CircleAvatar(
+    return PremiumAvatar(
       radius: 24,
-      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-      backgroundImage: hasPhoto ? NetworkImage(user!.photoUrl!) : null,
-      child: !hasPhoto
-          ? Text(
-              profile?.initials ?? (user?.name ?? 'U')[0].toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            )
-          : null,
+      photoUrl: hasPhoto ? user!.photoUrl! : null,
+      fallbackText: profile?.initials ?? (user?.name ?? 'U')[0].toUpperCase(),
+      fallbackFontSize: 20,
     );
   }
 
@@ -208,6 +215,74 @@ class _Header extends ConsumerWidget {
     ).whenComplete(() {
       ScaffoldWithNav.navBarVisible.value = true;
     });
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Header Action Button — circular icon button used in the top-right of header
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _HeaderActionButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final Color iconColor;
+  final List<Color> bgGradient;
+  final VoidCallback onTap;
+
+  const _HeaderActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.iconColor,
+    required this.bgGradient,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: bgGradient,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: iconColor.withValues(alpha: 0.12),
+                width: 0.8,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: iconColor.withValues(alpha: 0.15),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              icon,
+              size: 21,
+              color: iconColor,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -309,7 +384,7 @@ class _ProfileSwitcherSheet extends StatelessWidget {
                       shrinkWrap: true,
                       padding: EdgeInsets.zero,
                       itemCount: profiles.length,
-                      separatorBuilder: (_, __) => Padding(
+                      separatorBuilder: (_, _) => Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Divider(
                           height: 0.5,
@@ -513,7 +588,7 @@ class _HomeBody extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Health Score + Top Parameters Row ──
+                // ── Health Score Card (full-width) ──
                 if (summary.isCompleted) ...[
                   Builder(builder: (context) {
                     final counts = fullReport != null
@@ -524,53 +599,26 @@ class _HomeBody extends ConsumerWidget {
                           )
                         : summary.statusCounts;
 
-                    final topGreenParams = fullReport != null
-                        ? fullReport.parameters
-                            .where((p) => p.trafficLight == 'green')
-                            .take(3)
-                            .toList()
-                        : <ParameterModel>[];
-
-                    final scoreCard = HealthScoreCard(
+                    return HealthScoreCard(
                       healthScore: summary.healthScore,
                       statusCounts: counts,
                     );
-
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        scoreCard,
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              for (int i = 0; i < 3; i++) ...[
-                                if (i > 0) const SizedBox(height: 8),
-                                _TopParamBox(
-                                  param: i < topGreenParams.length
-                                      ? topGreenParams[i]
-                                      : null,
-                                  color: scoreCard.scoreColor,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
                   }),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
 
-                  // ── Quick Stats ──
-                  QuickStatsRow(
-                    statusCounts: fullReport != null
-                        ? StatusCounts(
-                            green: fullReport.parameters.where((p) => p.trafficLight == 'green').length,
-                            yellow: fullReport.parameters.where((p) => p.trafficLight == 'yellow').length,
-                            red: fullReport.parameters.where((p) => p.trafficLight == 'red').length,
-                          )
-                        : summary.statusCounts,
-                  ),
+                  // ── Top Bad Parameters Card ──
+                  Builder(builder: (context) {
+                    final spikeParams = fullReport != null
+                        ? [
+                            ...fullReport.parameters
+                                .where((p) => p.trafficLight == 'red'),
+                            ...fullReport.parameters
+                                .where((p) => p.trafficLight == 'yellow'),
+                          ].take(3).toList()
+                        : <ParameterModel>[];
+
+                    return _TopParametersCard(params: spikeParams);
+                  }),
                 ],
 
                 // ── Health Activity + Placeholder Row ──
@@ -601,14 +649,16 @@ class _HomeBody extends ConsumerWidget {
                   reportDate: summary.reportDate ?? summary.uploadDate,
                   parameterCount: summary.parameterCount,
                 ),
+
+                const SizedBox(height: 24),
+                const MedicalDisclaimer(compact: true),
               ],
             ),
           ),
         );
       },
-      loading: () => const SliverFillRemaining(
-        hasScrollBody: false,
-        child: AppLoading(message: 'Loading your health data...'),
+      loading: () => const SliverToBoxAdapter(
+        child: HomeScreenSkeleton(),
       ),
       error: (e, _) => SliverFillRemaining(
         hasScrollBody: false,
@@ -711,10 +761,34 @@ class _ActivityRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final historyState = ref.watch(historyNotifierProvider(profileId));
-    final previewCells = buildMonthlyGrid(historyState.reports);
     final activePlan = ref.watch(activePlanProvider);
     final isFree = activePlan == PlanTier.free;
+
+    // Only fetch history & trend data for paid users — free users see a
+    // blurred PremiumGate so the data would never be displayed.
+    final historyState = isFree
+        ? const HistoryState()
+        : ref.watch(historyNotifierProvider(profileId));
+
+    int? currentMonthScore;
+    if (!isFree) {
+      final fullReport =
+          ref.watch(latestFullReportProvider(profileId)).valueOrNull;
+      if (fullReport != null) {
+        final g = fullReport.parameters.where((p) => p.trafficLight == 'green').length;
+        final y = fullReport.parameters.where((p) => p.trafficLight == 'yellow').length;
+        final r = fullReport.parameters.where((p) => p.trafficLight == 'red').length;
+        final total = g + y + r;
+        if (total > 0) {
+          currentMonthScore = ((g * 100 + y * 20) / total).round();
+        }
+      }
+    }
+
+    final previewCells = buildMonthlyGrid(
+      historyState.reports,
+      currentMonthScore: currentMonthScore,
+    );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -759,79 +833,269 @@ class _SparklineBox extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final trendAsync = ref.watch(trendPreviewProvider(profileId));
     final historyState = ref.watch(historyNotifierProvider(profileId));
-    final isUnlocked = historyState.reports.length >= 3;
+    final hasReports = historyState.reports.isNotEmpty;
 
     return trendAsync.when(
       data: (trend) => SparklinePreview(
-        trend: isUnlocked ? trend : null,
-        onTap: isUnlocked ? () => context.push('/parameter-trend') : null,
+        trend: hasReports ? trend : null,
+        onTap: hasReports ? () => context.push('/parameter-trend') : null,
       ),
       loading: () => SparklinePreview(
-        isLoading: isUnlocked,
-        onTap: isUnlocked ? () => context.push('/parameter-trend') : null,
+        isLoading: hasReports,
+        onTap: hasReports ? () => context.push('/parameter-trend') : null,
       ),
-      error: (_, __) => SparklinePreview(
-        onTap: isUnlocked ? () => context.push('/parameter-trend') : null,
+      error: (_, _) => SparklinePreview(
+        onTap: hasReports ? () => context.push('/parameter-trend') : null,
       ),
     );
   }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Top Parameter Box — shows a single green parameter
+// Top Parameters Card — separate card showing abnormal parameters
 // ──────────────────────────────────────────────────────────────────────────────
 
-class _TopParamBox extends StatelessWidget {
-  final ParameterModel? param;
-  final Color color;
+class _TopParametersCard extends StatefulWidget {
+  final List<ParameterModel> params;
 
-  const _TopParamBox({this.param, required this.color});
+  const _TopParametersCard({required this.params});
+
+  @override
+  State<_TopParametersCard> createState() => _TopParametersCardState();
+}
+
+class _TopParametersCardState extends State<_TopParametersCard> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.15)),
-      ),
-      child: param != null
-          ? Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: color, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    param!.shortName ?? param!.name,
-                    style: const TextStyle(
-                      fontSize: 12,
+    if (widget.params.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.green.withValues(alpha: 0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.greenBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.check_circle_rounded,
+                  color: AppColors.green, size: 22),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'All Parameters Normal',
+                    style: TextStyle(
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
                     ),
-                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Your blood work looks great!',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => setState(() => _expanded = !_expanded),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded,
+                    size: 18, color: AppColors.yellow),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Parameters to Watch',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
-                Text(
-                  '${param!.value % 1 == 0 ? param!.value.toInt() : param!.value.toStringAsFixed(1)} ${param!.unit}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: color,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.red.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${widget.params.length}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.red,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                AnimatedRotation(
+                  turns: _expanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 300),
+                  child: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 22,
+                    color: AppColors.textMuted,
                   ),
                 ),
               ],
-            )
-          : Center(
-              child: Text(
-                '—',
-                style: TextStyle(
+            ),
+            AnimatedCrossFade(
+              firstChild: const SizedBox.shrink(),
+              secondChild: Column(
+                children: [
+                  const SizedBox(height: 14),
+                  for (int i = 0; i < widget.params.length; i++) ...[
+                    if (i > 0)
+                      Divider(
+                        height: 20,
+                        thickness: 0.5,
+                        color: AppColors.divider.withValues(alpha: 0.6),
+                      ),
+                    _ParamRow(param: widget.params[i]),
+                  ],
+                ],
+              ),
+              crossFadeState: _expanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 300),
+              sizeCurve: Curves.easeInOut,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ParamRow extends StatelessWidget {
+  final ParameterModel param;
+
+  const _ParamRow({required this.param});
+
+  bool get _isHigh {
+    final max = param.refRange?.max;
+    if (max != null) return param.value > max;
+    return param.status.toLowerCase().contains('high');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final high = _isHigh;
+    final color =
+        param.trafficLight == 'red' ? AppColors.red : AppColors.yellow;
+    final bgColor =
+        param.trafficLight == 'red' ? AppColors.redBg : AppColors.yellowBg;
+    final valueStr = param.value % 1 == 0
+        ? param.value.toInt().toString()
+        : param.value.toStringAsFixed(1);
+
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            high ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+            color: color,
+            size: 18,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                param.shortName ?? param.name,
+                style: const TextStyle(
                   fontSize: 13,
-                  color: AppColors.textMuted.withValues(alpha: 0.5),
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                high ? 'Above normal range' : 'Below normal range',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textMuted,
                 ),
               ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            '$valueStr ${param.unit}',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: color,
             ),
+          ),
+        ),
+      ],
     );
   }
 }

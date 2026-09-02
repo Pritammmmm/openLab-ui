@@ -11,8 +11,6 @@ class SubscriptionPlan {
   final PlanTier tier;
   final String name;
   final String tagline;
-  final int monthlyPrice; // INR
-  final int annualPrice; // INR total for 12 months
   final bool isPopular;
   final List<PlanFeature> features;
 
@@ -20,15 +18,12 @@ class SubscriptionPlan {
     required this.tier,
     required this.name,
     required this.tagline,
-    required this.monthlyPrice,
-    required this.annualPrice,
     this.isPopular = false,
     required this.features,
   });
 
-  int get annualSavings => (monthlyPrice * 12) - annualPrice;
-  int get savingsPercent =>
-      monthlyPrice > 0 ? ((annualSavings / (monthlyPrice * 12)) * 100).round() : 0;
+  bool get isFree => tier == PlanTier.free;
+  bool get isPaid => tier != PlanTier.free;
 
   static const List<SubscriptionPlan> plans = [free, plus, family];
 
@@ -36,8 +31,6 @@ class SubscriptionPlan {
     tier: PlanTier.free,
     name: 'Free',
     tagline: 'Get started',
-    monthlyPrice: 0,
-    annualPrice: 0,
     features: [
       PlanFeature('3 report uploads'),
       PlanFeature('Health score analysis'),
@@ -53,8 +46,6 @@ class SubscriptionPlan {
     tier: PlanTier.plus,
     name: 'Plus',
     tagline: 'For individuals',
-    monthlyPrice: 299,
-    annualPrice: 2499,
     isPopular: true,
     features: [
       PlanFeature('Unlimited reports'),
@@ -72,9 +63,6 @@ class SubscriptionPlan {
     tier: PlanTier.family,
     name: 'Family',
     tagline: 'For the whole family',
-    monthlyPrice: 599,
-    annualPrice: 4999,
-    isPopular: false,
     features: [
       PlanFeature('Unlimited reports'),
       PlanFeature('Health score analysis'),

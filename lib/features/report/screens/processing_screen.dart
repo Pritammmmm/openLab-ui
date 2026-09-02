@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/config/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/medical_disclaimer.dart';
 import '../../history/providers/history_provider.dart';
 import '../../home/providers/home_provider.dart';
 import '../../trends/providers/parameter_trend_provider.dart';
@@ -196,6 +197,9 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
 
   String _userFriendlyError(String? serverError) {
     if (serverError == null) return 'Something went wrong. Please try again.';
+    if (serverError.contains('NOT_BLOOD_REPORT')) {
+      return 'This image doesn\'t appear to be a blood test report. Please upload a clear photo or PDF of a lab report with test results.';
+    }
     if (serverError.contains('No valid parameters extracted') ||
         serverError.contains('No valid parameters could be extracted')) {
       return 'We couldn\'t find any medical data in this file. Please upload a clear photo or PDF of your blood test report.';
@@ -274,18 +278,21 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
 
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
             children: [
               // Hero section
               _buildHeroSection(),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
               // Steps list
               _buildStepsList(),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
 
               // Did you know card
               _buildFactCard(fact),
+              const SizedBox(height: 20),
+
+              const MedicalDisclaimer(compact: true),
             ],
           ),
         ),
@@ -327,15 +334,7 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
             ),
           ),
         ),
-        const SizedBox(height: 20),
-        Text(
-          'Analyzing Your Report',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.3,
-              ),
-        ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 12),
         Text(
           'This usually takes 20–30 seconds',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(

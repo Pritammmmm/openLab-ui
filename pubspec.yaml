@@ -1,7 +1,7 @@
 name: openlab
-description: "BloodWise — Understand Your Health, Simply. AI-powered blood report analysis."
+description: "WiseBlood — Understand Your Health, Simply. AI-powered blood report analysis."
 publish_to: 'none'
-version: 1.0.1+6
+version: 1.0.8+19
 
 environment:
   sdk: ^3.10.4
@@ -54,10 +54,36 @@ dependencies:
   url_launcher: ^6.3.2
   purchases_ui_flutter: ^9.14.0
 
+  # Local DB
+  path_provider: ^2.1.5
+  drift: ^2.22.1
+  sqlite3_flutter_libs: ^0.5.28
+  path: ^1.9.1
+
+  # Health Connect (Google Fit + Samsung Health)
+  health: ^13.3.1
+  shared_preferences: ^2.3.4
+
+  # Sensor step counting fallback
+  pedometer: ^4.0.2
+
+  # Notifications
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  build_runner: ^2.4.13
+  drift_dev: ^2.22.1
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/images/wbappicon.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/wbappicon.png"
 
 flutter:
   uses-material-design: true

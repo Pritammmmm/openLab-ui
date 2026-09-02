@@ -21,22 +21,21 @@ Future<void> initRevenueCat() async {
 }
 
 /// Identify the RevenueCat user after login.
-Future<void> identifyRevenueCatUser(String userId) async {
-  print('[RC] Logging in with userId: $userId');
+/// [restore] — only pass true on explicit sign-in or user-triggered restore,
+/// not on every app launch (avoids unnecessary Google Play round-trip).
+Future<void> identifyRevenueCatUser(String userId, {bool restore = false}) async {
+  debugPrint('[RC] Logging in with userId: $userId');
   final result = await Purchases.logIn(userId);
-  print('[RC] LogIn result — created: ${result.created}');
-  print('[RC] App user ID: ${result.customerInfo.originalAppUserId}');
-  print('[RC] Entitlements after login: ${result.customerInfo.entitlements.all.keys.toList()}');
+  debugPrint('[RC] LogIn result — created: ${result.created}');
+  debugPrint('[RC] Entitlements after login: ${result.customerInfo.entitlements.all.keys.toList()}');
 
-  // Restore purchases to link any orphaned Google Play purchases to this user
-  try {
-    final restored = await Purchases.restorePurchases();
-    print('[RC] Restore done — entitlements: ${restored.entitlements.all.keys.toList()}');
-    for (final entry in restored.entitlements.all.entries) {
-      print('[RC]   ${entry.key}: active=${entry.value.isActive}, product=${entry.value.productIdentifier}');
+  if (restore) {
+    try {
+      final restored = await Purchases.restorePurchases();
+      debugPrint('[RC] Restore done — entitlements: ${restored.entitlements.all.keys.toList()}');
+    } catch (e) {
+      debugPrint('[RC] Restore failed: $e');
     }
-  } catch (e) {
-    print('[RC] Restore failed: $e');
   }
 }
 
@@ -72,25 +71,32 @@ final customerInfoProvider = StreamProvider<CustomerInfo>((ref) {
 /// Acts as fallback when RevenueCat has credential issues.
 final backendPlanProvider = StateProvider<PlanTier>((ref) => PlanTier.free);
 
-/// Active plan tier — uses RevenueCat as primary, backend user model as fallback.
-/// This ensures the UI stays unlocked even if RevenueCat has credential issues.
+/// Active plan tier — uses the HIGHER of RevenueCat and backend-reported plans.
+/// This prevents a stale/empty RC response from downgrading a backend-confirmed
+/// paid user, while still respecting RC as the authority when it has data.
 final activePlanProvider = Provider<PlanTier>((ref) {
-  // Primary: RevenueCat entitlements
+  var rcTier = PlanTier.free;
+
   final info = ref.watch(customerInfoProvider).valueOrNull;
   if (info != null) {
     if (info.entitlements.all[AppConfig.familyEntitlementId]?.isActive == true) {
-      return PlanTier.family;
-    }
-    if (info.entitlements.all[AppConfig.plusEntitlementId]?.isActive == true) {
-      return PlanTier.plus;
+      rcTier = PlanTier.family;
+    } else if (info.entitlements.all[AppConfig.plusEntitlementId]?.isActive ==
+        true) {
+      rcTier = PlanTier.plus;
     }
   }
 
-  // Fallback: backend-reported plan (set from user model after auth/sync)
   final backendPlan = ref.watch(backendPlanProvider);
-  if (backendPlan != PlanTier.free) return backendPlan;
 
-  return PlanTier.free;
+  // Take the higher tier — protects against either source being stale
+  final resolved =
+      rcTier.index >= backendPlan.index ? rcTier : backendPlan;
+
+  debugPrint(
+      '[SUB] activePlan resolved: $resolved (rc=$rcTier, backend=$backendPlan, rcInfo=${info != null ? "loaded" : "null"})');
+
+  return resolved;
 });
 
 /// Fetches available offerings (products + prices) from Google Play via RevenueCat.

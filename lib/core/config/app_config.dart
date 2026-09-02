@@ -4,18 +4,20 @@ class AppConfig {
   static const String appName = 'WiseBlood';
   static const String appTagline = 'Understand Your Health, Simply';
 
-  // For real device: use your computer's LAN IP
-  // For emulator: use 10.0.2.2
-  static const String _host = '192.168.1.2';
-  static const int _port = 3000;
+  // ── API base URL ──────────────────────────────────────────────────────────
+  // Development: use your LAN IP (real device) or 10.0.2.2 (emulator)
+  // Production:  set _prodBaseUrl to your HTTPS domain
+  static const bool _useProduction = true;
 
-  static String get baseUrl => 'http://$_host:$_port/api';
+  static const String _devHost = '192.168.1.3';
+  static const int _devPort = 3000;
+  static const String _prodBaseUrl = 'https://wiseblood-backend-production.up.railway.app/api';
+
+  static String get baseUrl =>
+      _useProduction ? _prodBaseUrl : 'http://$_devHost:$_devPort/api';
 
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 30);
-
-  static const Duration accessTokenExpiry = Duration(minutes: 15);
-  static const Duration refreshTokenExpiry = Duration(days: 7);
 
   // Profile limits per plan
   static const int maxProfilesFree = 1; // self only
@@ -43,5 +45,5 @@ class AppConfig {
   static const double processingPollInterval = 2.5;
 
   static const String termsUrl = 'https://bloodwise.app/terms';
-  static const String privacyUrl = 'https://bloodwise.app/privacy';
+  static const String privacyUrl = 'https://pritammmmm.github.io/wiseblood-privacy/';
 }

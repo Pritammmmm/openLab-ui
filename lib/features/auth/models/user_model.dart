@@ -8,6 +8,7 @@ class UserModel {
   final SubscriptionInfo subscription;
   final UsageInfo? usage;
   final LimitsInfo? limits;
+  final bool onboardingCompleted;
   final bool isActive;
   final DateTime? lastLoginAt;
   final DateTime createdAt;
@@ -22,6 +23,7 @@ class UserModel {
     required this.subscription,
     this.usage,
     this.limits,
+    this.onboardingCompleted = true,
     this.isActive = true,
     this.lastLoginAt,
     required this.createdAt,
@@ -44,6 +46,7 @@ class UserModel {
       limits: json['limits'] != null
           ? LimitsInfo.fromJson(json['limits'] as Map<String, dynamic>)
           : null,
+      onboardingCompleted: json['onboarding_completed'] as bool? ?? json['onboardingCompleted'] as bool? ?? true,
       isActive: json['isActive'] as bool? ?? json['is_active'] as bool? ?? true,
       lastLoginAt: _parseDate(json['lastLoginAt'] ?? json['last_login_at']),
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now(),
@@ -59,6 +62,7 @@ class UserModel {
       'photoUrl': photoUrl,
       'preferredLanguage': preferredLanguage,
       'subscription': subscription.toJson(),
+      'onboardingCompleted': onboardingCompleted,
       'isActive': isActive,
       'lastLoginAt': lastLoginAt?.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
@@ -75,6 +79,7 @@ class UserModel {
     SubscriptionInfo? subscription,
     UsageInfo? usage,
     LimitsInfo? limits,
+    bool? onboardingCompleted,
     bool? isActive,
     DateTime? lastLoginAt,
     DateTime? createdAt,
@@ -89,6 +94,7 @@ class UserModel {
       subscription: subscription ?? this.subscription,
       usage: usage ?? this.usage,
       limits: limits ?? this.limits,
+      onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       isActive: isActive ?? this.isActive,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
       createdAt: createdAt ?? this.createdAt,

@@ -10,7 +10,7 @@ class ApiException implements Exception {
   });
 
   @override
-  String toString() => 'ApiException($statusCode): $message';
+  String toString() => message;
 }
 
 class NoInternetException extends ApiException {
@@ -42,6 +42,14 @@ class TimeoutException extends ApiException {
       : super(
           message: 'Request timed out. Please try again.',
           statusCode: null,
+        );
+}
+
+class ForbiddenException extends ApiException {
+  const ForbiddenException({String? message})
+      : super(
+          message: message ?? 'You don\'t have access to this feature. Please upgrade your plan.',
+          statusCode: 403,
         );
 }
 

@@ -40,6 +40,14 @@ class AuthApi {
     return ApiResponse.fromJson(response.data as Map<String, dynamic>, null);
   }
 
+  Future<ApiResponse<UserModel>> completeOnboarding() async {
+    final response = await _client.patch(ApiEndpoints.authOnboardingComplete);
+    return ApiResponse.fromJson(
+      response.data as Map<String, dynamic>,
+      (data) => UserModel.fromJson(data as Map<String, dynamic>),
+    );
+  }
+
   Future<ApiResponse<UserModel>> getMe() async {
     final response = await _client.get(ApiEndpoints.authMe);
     return ApiResponse.fromJson(

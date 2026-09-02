@@ -23,13 +23,15 @@ class HeatmapCell {
 }
 
 /// Computes the health score for a report.
+/// Prefers backend healthScore (same formula, authoritative for all months).
+/// Falls back to client-side computation from statusCounts.
 int? computeScore(ReportSummaryModel report) {
+  if (report.healthScore?.score != null) return report.healthScore!.score;
   final counts = report.statusCounts;
   if (counts.total > 0) {
     return ((counts.green * 100 + counts.yellow * 20) / counts.total).round();
   }
-  if (report.healthScore?.score != null) return report.healthScore!.score;
-  return 75;
+  return null;
 }
 
 HeatmapLevel levelFromScore(int? score) {
@@ -65,17 +67,24 @@ List<MonthInfo> getLast12Months() {
 /// Builds 12 monthly heatmap cells from report history.
 ///
 /// Logic:
-///   - **Current month**: always shows the latest report's health score,
-///     regardless of when that report was uploaded. This reflects
-///     "where your health is right now."
-///   - **Past months**: average health score of all reports uploaded
-///     during that calendar month (historical snapshot).
-///   - **Empty months**: no reports at all → gray block.
-List<HeatmapCell> buildMonthlyGrid(List<ReportSummaryModel> reports) {
+///   - **Current month**: uses [currentMonthScore] if provided (computed
+///     client-side from the full report's actual parameters). Falls back
+///     to the summary's statusCounts only if no full report is available.
+///   - **Past months**: the **last** report's score from that month (frozen
+///     snapshot of where health stood when the month ended).
+///   - **Empty months**: no reports → gray block.
+///
+/// [currentMonthScore] should be computed from the full report's parameters
+/// using the same formula as the health score ring (green=100%, yellow=20%,
+/// red=0%) so that both widgets always agree.
+List<HeatmapCell> buildMonthlyGrid(
+  List<ReportSummaryModel> reports, {
+  int? currentMonthScore,
+}) {
   final now = DateTime.now();
   final months = getLast12Months();
 
-  // ── Step 1: Find the latest report (most recent by date) ──
+  // ── Step 1: Find the globally latest completed report ──
   ReportSummaryModel? latestReport;
   for (final report in reports) {
     if (!report.isCompleted) continue;
@@ -92,38 +101,45 @@ List<HeatmapCell> buildMonthlyGrid(List<ReportSummaryModel> reports) {
   final latestScore =
       latestReport != null ? computeScore(latestReport) : null;
 
-  // ── Step 2: Group scores by calendar month for past months ──
-  final Map<String, List<int>> monthlyScores = {};
+  // ── Step 2: For each past month, find the last report & count ──
+  // Key: "year-month", Value: {lastReport, count}
+  final Map<String, _MonthData> monthlyData = {};
   for (final report in reports) {
     if (!report.isCompleted) continue;
     final date = report.reportDate ?? report.uploadDate;
-    final score = computeScore(report);
-    if (score == null) continue;
     final key = '${date.year}-${date.month}';
-    monthlyScores.putIfAbsent(key, () => []).add(score);
+    final existing = monthlyData[key];
+    if (existing == null) {
+      monthlyData[key] = _MonthData(lastReport: report, count: 1);
+    } else {
+      existing.count++;
+      final existingDate =
+          existing.lastReport.reportDate ?? existing.lastReport.uploadDate;
+      if (date.isAfter(existingDate)) {
+        existing.lastReport = report;
+      }
+    }
   }
 
   // ── Step 3: Build the 12 cells ──
   return months.map((mi) {
     final isCurrent = mi.year == now.year && mi.month == now.month;
     final key = '${mi.year}-${mi.month}';
-    final monthReports = monthlyScores[key];
+    final data = monthlyData[key];
 
     int? cellScore;
     int reportCount;
 
     if (isCurrent) {
-      // Current month = latest health score (real-time)
-      cellScore = latestScore;
-      reportCount = monthReports?.length ?? 0;
+      // Current month: prefer the client-computed score from full report
+      cellScore = currentMonthScore ?? latestScore;
+      reportCount = data?.count ?? 0;
     } else {
-      // Past month = average of that month's reports
-      if (monthReports != null && monthReports.isNotEmpty) {
-        cellScore =
-            (monthReports.reduce((a, b) => a + b) / monthReports.length)
-                .round();
+      // Past month = last report's score from that month (frozen)
+      if (data != null) {
+        cellScore = computeScore(data.lastReport);
       }
-      reportCount = monthReports?.length ?? 0;
+      reportCount = data?.count ?? 0;
     }
 
     return HeatmapCell(
@@ -135,4 +151,10 @@ List<HeatmapCell> buildMonthlyGrid(List<ReportSummaryModel> reports) {
       isCurrentMonth: isCurrent,
     );
   }).toList();
+}
+
+class _MonthData {
+  ReportSummaryModel lastReport;
+  int count;
+  _MonthData({required this.lastReport, required this.count});
 }

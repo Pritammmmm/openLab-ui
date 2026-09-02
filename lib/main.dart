@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
+import 'features/health/data/health_database.dart';
+import 'features/medicine/data/notification_service.dart';
 import 'features/subscription/providers/subscription_provider.dart';
 
 void main() async {
@@ -10,6 +12,7 @@ void main() async {
 
   await Firebase.initializeApp();
   await initRevenueCat();
+  HealthDatabase.instance;
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -27,4 +30,10 @@ void main() async {
       child: BloodWiseApp(),
     ),
   );
+
+  // Heavy: tz.initializeTimeZones() parses the full tz database synchronously.
+  // Defer to after the first frame so it doesn't block initial render.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    NotificationService.instance.init();
+  });
 }
